@@ -19,12 +19,13 @@
 #include <assert.h>
 #include <string.h>
 
-#define DATA_LEN_SIZE   1 //1个字节存储长度信息
-#define MAX_EVENT 64                //epoll_wait一次最多返回64个事件
-#define MAX_SOCKET 32*1024          //最多支持32k个socket连接
-#define SOCKET_READBUFF 128
-#define PIPE_HEAD_BUFF    128   
+#define DATA_LEN_SIZE   			1                 //1个字节存储长度信息
+#define MAX_EVENT 					64                //epoll_wait一次最多返回64个事件
+#define MAX_SOCKET 					32*1024           //最多支持32k个socket连接
+#define SOCKET_READBUFF 			128
+#define PIPE_HEAD_BUFF    			128   
 #define MAXPIPE_CONTENT_BUFF    	128     
+#define MAX_BACK_LOG 				32
 
 #define SOCKET_TYPE_INVALID          1		   
 #define SOCKET_TYPE_LISTEN_NOTADD    2		
@@ -35,7 +36,7 @@
 #define SOCKET_TYPE_OTHER            7		
 #define SOCKET_TYPE_PIPE_READ        8
 #define SOCKET_TYPE_PIPE_WRITE       9
-
+#define SOCKET_TYPE_NETLOGIC		10
 struct append_buffer
 {
 	struct append_buffer* next;
@@ -70,6 +71,8 @@ struct socket_server
     int thread_id;
     char* address;
     int port;
+    int listen_fd;
+    struct socket* socket_netlog;
 };
 
 struct request_close 
@@ -167,7 +170,7 @@ static void socket_keepalive(int fd)
 
 static int do_listen(const char* host,int port,int max_connect)
 {
-    int  listen_fd;
+    int listen_fd;
     listen_fd = socket(AF_INET,SOCK_STREAM,0);
     if (listen_fd == -1)
     {
@@ -447,6 +450,7 @@ static int close_socket(struct socket_server *ss,struct close_req *close,struct 
 {
 	int close_id = close->id;
 	struct socket *s = &ss->socket_pool[close_id % MAX_SOCKET];
+
 	if(s == NULL || s->type != SOCKET_TYPE_CONNECT_ADD)
 	{
 		fprintf(ERR_FILE,"close_socket: close a error socket\n");	
@@ -471,6 +475,7 @@ static int socket_server_send(struct socket_server* ss,struct send_data_req * re
 {
 	int id = request->id;
 	struct socket * s = &ss->socket_pool[id % MAX_SOCKET];
+
 	if(s->type != SOCKET_TYPE_CONNECT_ADD) //如果已经关闭了那么在dispose_readmassage函数中会对状态进行改变
 	{
 		if(request->buffer != NULL)
@@ -564,8 +569,31 @@ static int dispose_pipe_event(struct socket_server *ss,struct socket_message *re
 	return -1;
 }
 
+void send_notice2_netlogic_service(struct socket_server* ss)
+{
+	struct socket s = ss->ss->socket_netlog;
+	int socket = s->fd;
+	char* buf = "D"; 	//无任何意义的数据，为了唤醒 net_logic service 的 epoll
+
+	int n = write(socket,buf,strlen(buf));
+	if(n == -1)
+	{
+		switch(errno)
+		{
+			case EINTR:
+				continue;
+			case EAGAIN:
+				return -1;
+			default:
+			fprintf(stderr, "send_notice2_netlogic_service: write to netlogic_socket %d (fd=%d) error.",s->id,s->fd);
+			close_fd(ss,s,result);
+			return -1;
+		}
+	}
+}
+
 //----------------------------------------------------------------------------------------------------------------------
-struct socket_server* socket_server_create(net_io_start* start)
+static struct socket_server* socket_server_create(net_io_start* start)
 {
 	int efd = epoll_init();
 	if(efd_err(efd))
@@ -617,20 +645,10 @@ struct socket_server* socket_server_create(net_io_start* start)
 		free(ss->event_pool);
 		return NULL;
 	}
-	// queue* que = queue_creat();
-	// if(que == NULL)
-	// {
-	// 	fprintf(ERR_FILE,"socket_server_create:queue creat failed\n");
-	// 	epoll_release(efd);
-	// 	close(pipe_read);
-	// 	free(ss->socket_pool);		
-	// 	free(ss->event_pool);		
-	// 	return NULL;
-	// }
-	// ss->que = que;
+
 	ss->thread_id = start->thread_id;
-	ss->io2netlogic_que = que_pool[ss->thread_id].que_to;
-	ss->netlogic2io_que = que_pool[ss->thread_id].que_from;
+	ss->io2netlogic_que = que_pool[ss->thread_id].que_from;
+	ss->netlogic2io_que = que_pool[ss->thread_id].que_to;
 	ss->address = start->address;
 	ss->port = start->port;
 	return ss;
@@ -638,13 +656,14 @@ struct socket_server* socket_server_create(net_io_start* start)
 
 
 
-int socket_server_listen(struct socket_server *ss,const char* host,int port,int backlog)
+static int socket_server_listen(struct socket_server *ss,const char* host,int port,int backlog)
 {
 	int listen_fd = do_listen(host,port,backlog);
 	if(listen_fd == -1)
 	{
 	   return -1;
 	}
+	ss->listen_fd = listen_fd;
 	int id = apply_id();
 	if(listen_socket(ss,listen_fd,id) == 0)
 	{
@@ -653,7 +672,7 @@ int socket_server_listen(struct socket_server *ss,const char* host,int port,int 
 	return -1;
 }
 
-int socket_server_event(struct socket_server *ss, struct socket_message * result)
+static int socket_server_event(struct socket_server *ss, struct socket_message * result)
 {
 	for( ; ; )
 	{	
@@ -703,6 +722,9 @@ int socket_server_event(struct socket_server *ss, struct socket_message * result
 				fprintf(ERR_FILE,"socket_server_event:a invalied socket from pool\n");
 				break;
 
+			case SOCKET_TYPE_NETLOGIC:
+				break;
+
 			case SOCKET_TYPE_CONNECT_ADD:
 				if(eve->read)
 				{
@@ -727,9 +749,10 @@ int socket_server_event(struct socket_server *ss, struct socket_message * result
 	}
 }
 
-int socket_server_start(struct socket_server *ss,int id)
+static int socket_server_start(struct socket_server *ss,int id)
 {
 	struct socket *s = &ss->socket_pool[id % MAX_SOCKET];  
+
 	if(s == NULL)
 	{
 		return SOCKET_ERROR;
@@ -753,10 +776,11 @@ int socket_server_start(struct socket_server *ss,int id)
 }
 
 
-void socket_server_release(struct socket_server *ss)
+static void socket_server_release(struct socket_server *ss)
 {
 	int i = 0;
 	struct socket* s = NULL;
+
 	for(i=0; i<MAX_SOCKET; i++)
 	{
 		s = &ss->socket_pool[i];
@@ -774,32 +798,40 @@ void socket_server_release(struct socket_server *ss)
 
 
 //网络io线程只负责读写和负责通知网关处理线程处理
-int dispose_event_result(struct socket_server* ss,struct socket_message *result,int type)
+static int dispose_event_result(struct socket_server* ss,struct socket_message *result,int type)
 {
 	q_node* qnode = NULL;
-
 	int uid = result.id;
 	char* buf = result.data;
 	int len = result.lid_size;	
+
 	switch(type)
 	{
 		case SOCKET_DATA:
-			qnode = set_qnode(buf,TYPE_DATA,uid,len,NULL);
+			qnode = set_qnode(buf,TYPE_DATA,0,uid,len,NULL);
 			break;
 
 		case SOCKET_CLOSE:
-			qnode = set_qnode(NULL,TYPE_CLOSE,uid,0,NULL);	
+			qnode = set_qnode(NULL,TYPE_CLOSE,0,uid,0,NULL);	
 			break;
 
 		case SOCKET_SUCCESS:
-			qnode = set_qnode(NULL,TYPE_SUCCESS,uid,0,NULL);
+			qnode = set_qnode(NULL,TYPE_SUCCESS,0,uid,0,NULL);
 			break;
 	}
-	queue_push(ss->que,qnode);
+	return qnode;
+	
 }
 
+static void send_client_data2net_logic(struct socket_server* ss,q_node* qnode)
+{
+	queue_push(ss->io2netlogic_que,qnode); //封装成一个send函数
+	send_notice2_netlogic_service(ss);	   //socket发送一个字节的信息给net_logic
+	
+}
 
-net_io_start* net_io_start_creat(double_que* que_pool,int thread_id,char*address,int port)
+//这里应该不要传递那么多参数，直接传递读配置文件后返回的指针吧
+static net_io_start* net_io_start_creat(double_que* que_pool,int thread_id,char*address,int port)
 {
 	net_io_start* start = (net_io_start*)malloc(sizeof(net_io_start));
 	start->que_pool = que_pool;
@@ -810,40 +842,78 @@ net_io_start* net_io_start_creat(double_que* que_pool,int thread_id,char*address
 	return start;
 }
 
+static int wait_netlogic_service_connect(struct socket_server* ss)
+{
+ 	struct sockaddr_in addr; 	   //tcpip地址结构
+	socklen_t addr_len = sizeof(addr);
+	int listen_fd = ss->listen_fd;
+	int socket = 0;
+
+	socket = accept(sockfd,  (struct sockaddr *)&addr, (socklen_t *)&addr_len);
+	if (socket == -1)
+	{
+		fprintf(ERR_FILE,"wait_netlogic_thread_connect: socket connect failed\n");
+		return -1;
+	}   
+	else
+	{
+		int id = apply_id();
+		struct socket*s = apply_socket(ss,socket,id,true);
+		if(s == NULL)
+		{
+			fprintf(ERR_FILE,"wait_netlogic_thread_connect: apply_socket failed\n");
+			return -1;
+		}
+		s->type = SOCKET_TYPE_NETLOGIC;//标记为与网络逻辑线程通信的socket
+		ss->socket_netlog = s;		   //与netlogic通信的socket，记录下来
+	}
+	return 0;
+}
+
+
+
 //socket_server thread loop
-void* socket_server_thread_loop(void* arg)
+void* network_io_service_loop(void* arg)
 {
 	net_io_start* start = (net_io_start*)arg;
 	struct socket_server* ss = socket_server_create();
 	if(ss == NULL)
 		return -1;	
 
-	char* address = start->address; //'127.0.0.1'
-	int port = start->port;  		//8888
-	int listen_id = socket_server_listen(ss,address,port,32);
-	printf("listen_id = %d\n",listen_id);
+	char* address = start->address; 
+	int port = start->port;  		
+	int listen_id = socket_server_listen(ss,address,port,MAX_BACK_LOG);
+//	printf("listen_id = %d\n",listen_id);
 	if(listen_id == -1)
-		return -1;
+	{
+		fprintf(ERR_FILE,"network_io_service_loop: socket_server_listen failed\n");
+		return -1;				
+	}
+	if(wait_netlogic_service_connect(ss) == -1)
+	{
+		fprintf(ERR_FILE,"wait_netlogic_thread_connect: apply_socket failed\n");
+		return -1;		
+	}
 	socket_server_start(ss,listen_id);
-	struct socket_message result;
 
+	struct socket_message result;
 	for ( ; ; )
 	{
 		int type = socket_server_event(ss,&result);
-
-		switch(type)  //这里以后代替为与框架数据处理进程通信的代码
+		switch(type)  
 		{
 			case SOCKET_EXIT:
 				goto _EXIT;
 				
 			case SOCKET_ACCEPT://client connect
 				printf("accept[id=%d] from [id=%d]",result.id,result.lid_size);
-				socket_server_start(ss,result.id);  //add to epoll
+				socket_server_start(ss,result.id);  	//add to epoll
+				break;
 
 			case SOCKET_DATA:
 			case SOCKET_CLOSE:
 			case SOCKET_SUCCESS:
-
+				dispose_event_result(ss,result,type);
 				break;
 
 			default:
@@ -853,6 +923,50 @@ void* socket_server_thread_loop(void* arg)
 _EXIT:
 	socket_server_release(ss);	
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

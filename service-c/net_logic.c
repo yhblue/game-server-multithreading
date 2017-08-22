@@ -4,6 +4,7 @@
 #include "err.h"
 #include "socket_epoll.h"
 #include "message.pb-c.h"
+#include "configure.h"
 
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -18,7 +19,7 @@
 #include <assert.h>
 #include <string.h>
 
-#define MAXTHREAD     				6
+#define MAX_SERVICE      			8
 #define NET_LOGIC_MAX_EVENT  		10
 #define GAME_THREADING_NUM      	4
 
@@ -26,10 +27,19 @@
 #define EVENT_THREAD_CONNECT_ERR  	2
 #define EVENT_THREAD_DISCONNECT     3
 
-#define THREAD_TYPE_NET_IO       	1
-#define THREAD_TYPE_GAME_LOGIC   	2
-#define THREAD_TYPE_LOG          	3
-#define THREAD_TYPE_CHAT         	4
+#define SERVICE_TYPE_NET_IO       	1
+#define SERVICE_TYPE_GAME_LOGIC   	2
+#define SERVICE_TYPE_LOG          	3
+#define SERVICE_TYPE_CHAT         	4
+
+#define SERVICE_ID_NETWORK_IO       0
+#define SERVICE_ID_NET_ROUTE        1
+#define SERVICE_ID_LOG              2
+#define SERVICE_ID_DB               3
+#define SERVICE_ID_GAME_FIRST       4
+#define SERVICE_ID_GAME_SECOND      5
+#define SERVICE_ID_GAME_THIRD       6
+#define SERVICE_ID_GAME_FOURTH      7
 
 #define TO_OTHER_THREAD_QUE     	0
 #define FROM_OTHER_THREAD_QUE    	1
@@ -41,12 +51,12 @@ typedef struct _pack_head
 	int uid;     	  //socket的id(或者说是用户的id)
 }pack_head;
 
-typedef struct _threading
+typedef struct _service
 {
 	int thread_id;
 	int sock_fd;
 	int type;
-}threading;
+}service;
 
 typedef struct _send_game_pack
 {
@@ -74,7 +84,7 @@ typedef struct _net_logic
 	int event_index;
 	int event_n;	
 	threading current_que;
-	threading* threading_pool; 			    //线程的信息的存储结构
+	service* service_pool; 			    //线程的信息的存储结构
 	int thread_socket_fd;
 	unsigned char sock_id_2_threadsock_fd;  //下标是socket id，值是thread_socket_fd[] 中的下标	
 	int thread_id;
@@ -86,16 +96,11 @@ typedef struct _deserialize
 	char* buffer;    //存放反序列化之后的数据
 }deserialize;
 
-typedef struct _net_logic_start
-{
-	double_que* que_pool;
-	int thread_id;	
-}net_logic_start;
 
 double_que* communication_que_creat()
 {
 	double_que* que_pool = (dou_que*)malloc(sizeof(double_que));
-	for(int i=0; i<MAXTHREAD-1; i++)
+	for(int i=0; i<MAX_SERVICE-1; i++)
 	{
 		que_pool[i].que_to = queue_creat();
 		que_pool[i].que_from = queue_creat();
@@ -183,21 +188,21 @@ static net_logic* net_logic_creat(net_logic_start* start)
 	}
 	memset(nt->event_pool,0,size);
 
-	size = sizeof(threading) * MAXTHREAD;
-	nt->threading_pool = (threading*)malloc(size);
-	if (nt->threading_pool == NULL)
+	size = sizeof(service) * MAX_SERVICE;
+	nt->service_pool = (service*)malloc(size);
+	if (nt->service_pool == NULL)
 	{
-		fprintf(ERR_FILE,"net_logic_creat:threading_pool malloc failed\n");
+		fprintf(ERR_FILE,"net_logic_creat:service_pool malloc failed\n");
 		epoll_release(efd);
 		free(nt->event_pool);
 		return NULL;		
 	}
-	for(int i=0; i<MAXTHREAD; i++)
+	for(int i=0; i<MAX_SERVICE; i++)
 	{
-		threading* td = &nt->threading_pool[i];
-		td->thread_id = 0;
-		td->sock_fd = 0;
-		td->type = 0;
+		service* sv = &nt->service_pool[i];
+		sv->thread_id = 0;
+		sv->sock_fd = 0;
+		sv->type = 0;
 	}
 
 	size = sizeof(unsigned char) * MAX_SOCKET;
@@ -207,12 +212,12 @@ static net_logic* net_logic_creat(net_logic_start* start)
 		fprintf(ERR_FILE,"net_logic_creat:sock_id_2_threadsock_fd malloc failed\n");
 		epoll_release(efd);
 		free(nt->event_pool);
-		free(nt->threading_pool);
+		free(nt->service_pool);
 		return NULL;			
 	}
 	memset(nt->sock_id_2_threadsock_fd,0,size);
 
-	size = sizeof(int) * MAXTHREAD;
+	size = sizeof(int) * MAX_SERVICE;
 	nt->thread_socket_fd = (int*)malloc(size);
 	if(nt->thread_socket_fd == NULL)
 	{
@@ -325,35 +330,6 @@ int dispose_threading_read_msg(net_logic* nt,threading* td)
 }
 
 
-void* net_logic_event_thread(void* arg)
-{
-	net_logic_start* start = arg;
-
-	net_logic *nt = net_logic_creat(start);
-	if(nt == NULL)
-		return -1;	
-	int type = 0;
-
-	for( ; ; )
-	{
-		type = net_logic_event(nt);
-
-		switch(type)
-		{
-			case EVENT_TYPE_QUE_NULL:
-				break;
-
-			case EVENT_THREAD_CONNECT_ERR:
-				break;
-
-			case EVENT_THREAD_DISCONNECT:
-				break;
-		}
-	}
-
-}
-
-
 static int dispose_queue_event(net_logic* nl)
 {
 	//queue* que = nl->que_pool[nl->thread_id]; //根据线程id得到相应的queue
@@ -392,7 +368,7 @@ static int dispose_queue_event(net_logic* nl)
 static q_node* pack_user_data(deserialize* desseria_data,int uid_pack)
 {
 	q_node* qnode = (q_node*)malloc(sizeof(q_node));
-	if(pack == NULL)
+	if(qnode == NULL)
 	{
 		fprintf(ERR_FILE,"pack_user_data:qnode malloc failed\n");
 		return NULL;
@@ -406,7 +382,7 @@ static q_node* pack_user_data(deserialize* desseria_data,int uid_pack)
 	qnode->proto_type = desseria_data->proto_type;
 	qnode->buffer = desseria_data->buffer; 
 
-	return pack;
+	return qnode;
 }
 
 static imform2_game* pack_inform_data(unsigned char len_pack,int uid_pack,char type_pack)
@@ -459,17 +435,141 @@ static int send_data_2_game_logic(net_logic* nl,data2_game* send_data)
 }
 
 //路由表的功能是:根据 uid和 发送/接收 队列得到相应的队列
-int route_get_queue(net_logic* nl,int que_type)
+static int route_get_queue(net_logic* nl,int que_type)
 {
-	int index = //继续写这里
-	double_que* dou_que = nil->que_pool[]
-	if(que_type == TO_OTHER_THREAD_QUE)  //current thread to other thread
+	// int index = //继续写这里
+	// double_que* dou_que = nil->que_pool[]
+	// if(que_type == TO_OTHER_THREAD_QUE)  //current thread to other thread
+	// {
+	// 	que = dou_que[TO_OTHER_THREAD_QUE];
+	// }
+	// else if(que_type == FROM_OTHER_THREAD_QUE)
+	// {
+	// 	que = dou_que[FROM_OTHER_THREAD_QUE];
+	// }
+	// return que;
+	return 0;
+}
+
+
+static int connect_netio_service(char* address,int port)
+{
+    struct sockaddr_in server_addr;  //存放服务器地址信息
+    
+    //creat socket
+    sockfd = socket(AF_INET,SOCK_STREAM,0);
+    if( sockfd == -1 )
+    {
+       fprintf(ERR_FILE,"connect_netio_socket: socket creat failed\n");
+       return -1;
+    }
+    
+    //设置要连接的线程的地址配置
+    memset(&server_addr,0,sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(port);
+    server_addr.sin_addr.s_addr = inet_addr(address);
+        
+    if( (connect(sockfd,(struct sockaddr*)(&server_addr),sizeof(struct sockaddr))) == -1 )
+    {
+       fprintf(ERR_FILE,"connect_netio_socket: connect error\n");
+       return -1;
+    }	
+}
+
+
+static int connect_netio_service(net_logic* nl,char* netio_addr,int netio_port)
+{
+	int listen_fd = ss->listen_fd;
+
+    struct sockaddr_in server_addr;  //存放服务地址信息
+    
+    //creat socket
+    sockfd = socket(AF_INET,SOCK_STREAM,0);
+    if( sockfd == -1 )
+    {
+       fprintf(ERR_FILE,"connect_netio_service:socket creat failed\n");
+       exit(1);	
+    }
+    
+    //set address
+    memset(&server_addr,0,sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(netio_port);
+    server_addr.sin_addr.s_addr = inet_addr(netio_addr);
+        
+    if((connect(sockfd,(struct sockaddr*)(&server_addr),sizeof(struct sockaddr))) == -1)
+    {
+       fprintf(ERR_FILE,"connect_netio_service:netlogic_thread disconnect\n");
+       return -1;
+    }	
+    //connect sussess
+    service* sv = nl->service_pool[SERVICE_ID_NETWORK_IO];
+    sv->thread_id = SERVICE_ID_NETWORK_IO;
+    sv->sock_fd = sockfd;
+    sv->type = SERVICE_TYPE_NET_IO;
+    return 0;
+}
+
+
+
+static int service_connect_establish(net_logic_start* start)
+{
+	char* netio_addr = start->netio_addr;
+	int netio_port = start->netio_port;
+	if(connect_netio_service(netio_addr,netio_port) == -1)
 	{
-		que = dou_que[TO_OTHER_THREAD_QUE];
+       fprintf(ERR_FILE,"service_connect_establish:connect_netio_service failed\n");
+       return -1;			
 	}
-	else if(que_type == FROM_OTHER_THREAD_QUE)
+}
+
+//configure* config,
+net_logic_start* net_logic_start_creat(double_que* que_pool)
+{
+	net_logic_start* start = malloc(sizeof(net_logic_start));
+	if(start == NULL)
 	{
-		que = dou_que[FROM_OTHER_THREAD_QUE];
+       fprintf(ERR_FILE,"net_logic_start_creat:start malloc failed\n");
+       return -1;			
 	}
-	return que;
+	start->que_pool = que_pool;
+	start->thread_id = 1;
+	start->netio_addr = "127.0.0.1";
+	start->netio_port = 8888;
+}
+
+void* net_logic_service_loop(void* arg)
+{
+	net_logic_start* start = arg;
+	net_logic *nt = net_logic_creat(start);
+	if(nt == NULL)
+	{
+       fprintf(ERR_FILE,"net_logic_service_loop:connect_netio_service disconnect\n");
+       return -1;		
+	}
+	if(service_connect_establish(start) == -1)
+	{
+       fprintf(ERR_FILE,"net_logic_service_loop:service_connect_establish failed\n");
+       return -1;			
+	}
+	int type = 0;
+
+	for( ; ; )
+	{
+		// type = net_logic_event(nt);
+		// switch(type)
+		// {
+		// 	case EVENT_TYPE_QUE_NULL:
+		// 		break;
+
+		// 	case EVENT_THREAD_CONNECT_ERR:
+		// 		break;
+
+		// 	case EVENT_THREAD_DISCONNECT:
+		// 		break;
+		// }
+		printf("net_logic_service_loop running!\n");
+	}
+
 }

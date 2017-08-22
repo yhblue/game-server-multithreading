@@ -22,8 +22,8 @@
 #include <assert.h>
 #include <string.h>
 
-#define NET_LOGIC_MAX_EVENT  10
-#define GAME_PROCESS_NUM      4
+#define NET_LOGIC_MAX_EVENT  	 10
+#define GAME_PROCESS_NUM      	  4
 
 #define EVENT_TYPE_QUE_NULL  	  1
 

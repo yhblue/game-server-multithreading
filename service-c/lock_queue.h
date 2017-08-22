@@ -27,4 +27,6 @@ typedef struct _queue
     pthread_mutex_t mutex_lock;
 }queue;
 
+q_node* set_qnode(void* buf,char msg_type,char proto_type,int uid,int len,q_node* next);
+
 #endif
