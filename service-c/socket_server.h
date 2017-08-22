@@ -1,6 +1,7 @@
 #ifndef  _SOCKET_SERVER_H
 #define _SOCKET_SERVER_H
 
+#include "net_logic.h"
 //返回的result的类型
 #define SOCKET_DATA 0			// 有数据到来
 #define SOCKET_CLOSE 1			// 连接关闭
@@ -11,6 +12,7 @@
 #define SOCKET_IGNORE 6         // 忽略,无需处理
 #define SOCKET_NETLOGIC_QUE  7
 
+#define MAX_SOCKET 					32*1024           //最多支持32k个socket连接 
 
 struct socket_message {
 	int id;
@@ -34,7 +36,7 @@ typedef struct _net_io_start
 // void read_test(struct socket_server* ss,int id,const char* data,int size,struct socket_message *result);
 // void* socket_server_thread_loop(void* arg);
 // net_io_start* net_io_start_creat(double_que* que_pool,int thread_id,char*address,int port);
-
+net_io_start* net_io_start_creat(double_que* que_pool,int thread_id,char*address,int port);
 void* network_io_service_loop(void* arg);
 
 #endif

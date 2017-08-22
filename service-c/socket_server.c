@@ -21,7 +21,7 @@
 
 #define DATA_LEN_SIZE   			1                 //1个字节存储长度信息
 #define MAX_EVENT 					64                //epoll_wait一次最多返回64个事件
-#define MAX_SOCKET 					32*1024           //最多支持32k个socket连接
+
 #define SOCKET_READBUFF 			128
 #define PIPE_HEAD_BUFF    			128   
 #define MAXPIPE_CONTENT_BUFF    	128     
@@ -36,13 +36,14 @@
 #define SOCKET_TYPE_OTHER            7		
 #define SOCKET_TYPE_PIPE_READ        8
 #define SOCKET_TYPE_PIPE_WRITE       9
-#define SOCKET_TYPE_NETLOGIC		10
+#define SOCKET_TYPE_NETLOGIC				10
+
 struct append_buffer
 {
 	struct append_buffer* next;
 	void* buffer;     //in order to free memery
 	void* current;
-	int size;        //这块缓冲区中剩余未发送的字节数
+	int size;        	//这块缓冲区中剩余未发送的字节数
 };
 
 struct socket
@@ -65,7 +66,7 @@ struct socket_server
     int pipe_read_fd;
     int pipe_write_fd;
     bool pipe_read;
-    queue* que;  //和网关逻辑线程通信的消息队列
+//    queue* que;  								 //和网关逻辑线程通信的消息队列
     queue* io2netlogic_que;
     queue* netlogic2io_que;
     int thread_id;
@@ -99,28 +100,28 @@ struct request_package
 };
 
 
-//-------------------------------------------------------------------------------------------------------------------------
-static int append_remaindata(struct socket *s,struct send_data_req * request,int start)
-{
-	struct append_buffer* node = (struct append_buffer*)malloc(sizeof(struct append_buffer));
-	if(node == NULL)
-		return -1;
-	node->current = request->buffer + start;
-	node->size = request->size - start;
-	node->buffer = request->buffer;
-	node->next = NULL;
-	s->remain_size += node->size;
-	if(s->head == NULL)
-	{
-		s->head = s->tail = node;
-	}
-	else
-	{
-		s->tail->next = node;
-		s->tail = node;
-	}
-	return 0;
-}
+//----------------------------------------------------------------------------------------------------------------------
+// static int append_remaindata(struct socket *s,struct send_data_req * request,int start)
+// {
+// 	struct append_buffer* node = (struct append_buffer*)malloc(sizeof(struct append_buffer));
+// 	if(node == NULL)
+// 		return -1;
+// 	node->current = request->buffer + start;
+// 	node->size = request->size - start;
+// 	node->buffer = request->buffer;
+// 	node->next = NULL;
+// 	s->remain_size += node->size;
+// 	if(s->head == NULL)
+// 	{
+// 		s->head = s->tail = node;
+// 	}
+// 	else
+// 	{
+// 		s->tail->next = node;
+// 		s->tail = node;
+// 	}
+// 	return 0;
+// }
 
 //id from 1-2^31-1
 static int apply_id()
@@ -309,7 +310,7 @@ static int dispose_readmessage(struct socket_server *ss,struct socket *s, struct
 		return -1;
 	}
 	memset(buffer,0,len);
-	int n = (int)read(s->fd,buffer,len);
+	n = (int)read(s->fd,buffer,len);
 	assert(n == len);
 	if(n <= 0)
 		goto _err;
@@ -342,6 +343,7 @@ _err:
 		close_fd(ss,s,result);
 		return SOCKET_CLOSE;
 	}
+	return -1;
 }
 
 static int send_data(struct socket_server* ss,struct socket *s,struct socket_message *result)
@@ -420,158 +422,160 @@ static int pipe_init(struct socket_server* ss,int pipe_type)
 	return pipe_fd[0];
 }
 
-static int read_from_pipe(struct socket_server *ss,void* buffer,int len)
-{
-	int n = 0;
-	for( ; ; )
-	{
-		n = read(ss->pipe_read_fd,buffer,len);
-		if(n < 0)
-		{
-			if(errno == EINTR)
-				continue;
-			else
-			{
-				fprintf(ERR_FILE, "read_from_pipe: read pipe error %s.",strerror(errno));
-				return -1;					
-			}
+//#####
+// static int read_from_pipe(struct socket_server *ss,void* buffer,int len)
+// {
+// 	int n = 0;
+// 	for( ; ; )
+// 	{
+// 		n = read(ss->pipe_read_fd,buffer,len);
+// 		if(n < 0)
+// 		{
+// 			if(errno == EINTR)
+// 				continue;
+// 			else
+// 			{
+// 				fprintf(ERR_FILE, "read_from_pipe: read pipe error %s.",strerror(errno));
+// 				return -1;					
+// 			}
 			
-		}
-		if(n == len)
-		{
-			return 0;
-		}
-	}
-	fprintf(ERR_FILE, "read_from_pipe: read pipe error,need to read size=%d but result size=%d\n",len,n);
-	return -1;
-}
+// 		}
+// 		if(n == len)
+// 		{
+// 			return 0;
+// 		}
+// 	}
+// 	fprintf(ERR_FILE, "read_from_pipe: read pipe error,need to read size=%d but result size=%d\n",len,n);
+// 	return -1;
+// }
 
-static int close_socket(struct socket_server *ss,struct close_req *close,struct socket_message * result)
-{
-	int close_id = close->id;
-	struct socket *s = &ss->socket_pool[close_id % MAX_SOCKET];
+//##########
+// static int close_socket(struct socket_server *ss,struct close_req *close,struct socket_message * result)
+// {
+// 	int close_id = close->id;
+// 	struct socket *s = &ss->socket_pool[close_id % MAX_SOCKET];
 
-	if(s == NULL || s->type != SOCKET_TYPE_CONNECT_ADD)
-	{
-		fprintf(ERR_FILE,"close_socket: close a error socket\n");	
-		return -1;
-	}
-	if(s->remain_size)
-	{
-		int type = send_data(ss,s,result);
-		if(type != -1)
-			return type;
-	}
-	if(s->remain_size == 0)
-	{
-		close_fd(ss,s,result);
-		return SOCKET_CLOSE;
-	}
-	return -1;
-}
-
+// 	if(s == NULL || s->type != SOCKET_TYPE_CONNECT_ADD)
+// 	{
+// 		fprintf(ERR_FILE,"close_socket: close a error socket\n");	
+// 		return -1;
+// 	}
+// 	if(s->remain_size)
+// 	{
+// 		int type = send_data(ss,s,result);
+// 		if(type != -1)
+// 			return type;
+// 	}
+// 	if(s->remain_size == 0)
+// 	{
+// 		close_fd(ss,s,result);
+// 		return SOCKET_CLOSE;
+// 	}
+// 	return -1;
+// }
+//############
 //管道中接收到其他进程发过了的写socket操作调用。
-static int socket_server_send(struct socket_server* ss,struct send_data_req * request,struct socket_message *result)
+// static int socket_server_send(struct socket_server* ss,struct send_data_req * request,struct socket_message *result)
+// {
+// 	int id = request->id;
+// 	struct socket * s = &ss->socket_pool[id % MAX_SOCKET];
+
+// 	if(s->type != SOCKET_TYPE_CONNECT_ADD) //如果已经关闭了那么在dispose_readmassage函数中会对状态进行改变
+// 	{
+// 		if(request->buffer != NULL)
+// 		{
+// 			free(request->buffer);
+// 			request->buffer = NULL;			
+// 		}
+// 		return -1;
+// 	}
+// 	if(s->head == NULL) //追加的缓冲区中不存在未发送的数据
+// 	{
+// 		int n = write(s->fd,request->buffer,request->size);
+// 		if(n == -1)
+// 		{
+// 			switch(errno)
+// 			{
+// 				case EINTR:
+// 				case EAGAIN:
+// 					n = 0;
+// 					break;
+// 				default:
+// 					fprintf(stderr, "socket_server_send: write to %d (fd=%d) error.",id,s->fd);			
+// 					close_fd(ss,s,result);
+// 					if(request->buffer != NULL)  //error,free memory
+// 					{
+// 						free(request->buffer);
+// 						request->buffer = NULL;
+// 					}
+// 					return -1;
+// 			}
+// 		}
+// 		if(n == request->size) //send success
+// 		{
+// 			if(request->buffer != NULL)
+// 			{
+// 				printf("request->buffer was free\n");
+// 				free(request->buffer);
+// 				request->buffer = NULL;
+// 			}		
+// 			return 0;
+// 		}
+// 		if(n < request->size)
+// 		{
+// 			//append_remaindata(s,request,n);  以后再加上
+// 			epoll_write(ss->epoll_fd,s->fd,s,true);
+// 		}		
+// 	}
+// 	else
+// 	{
+// 		//append_remaindata(s,request,0);
+// 	}
+// 	return 0;
+// }
+
+//#####
+// static int dispose_pipe_event(struct socket_server *ss,struct socket_message *result)
+// {
+// 	uint8_t pipe_head[PIPE_HEAD_BUFF];  //msg 
+// 	if(read_from_pipe(ss,pipe_head,PIPE_HEAD_BUFF) == -1)
+// 	{
+// 		return -1;
+// 	}
+// 	uint8_t type = pipe_head[0];
+// 	uint8_t len = pipe_head[1];
+
+// 	if(type == 'D')
+// 	{
+// 		struct send_data_req send; //content
+
+// 		if(len > MAXPIPE_CONTENT_BUFF)
+// 			fprintf(ERR_FILE,"dispose_pipe_event:data too large\n");	
+// 			return -1;
+// 		send.buffer = (char*)malloc(len);  //发送出去的内存，需要在send函数中释放掉申请的内存
+// 		if(read_from_pipe(ss,&send,len) == -1)
+// 		{
+// 			return -1;
+// 		}		
+// 		socket_server_send(ss,&send,result);
+// 		return 0;
+// 	}
+// 	if(type == 'C')
+// 	{
+// 		struct close_req close;
+// 		if(read_from_pipe(ss,&close,len) == -1)
+// 		{
+// 			return -1;
+// 		}
+// 		close_socket(ss,&close,result);
+// 		return 0;
+// 	}
+// 	return -1;
+// }
+
+static int send_notice2_netlogic_service(struct socket_server* ss)
 {
-	int id = request->id;
-	struct socket * s = &ss->socket_pool[id % MAX_SOCKET];
-
-	if(s->type != SOCKET_TYPE_CONNECT_ADD) //如果已经关闭了那么在dispose_readmassage函数中会对状态进行改变
-	{
-		if(request->buffer != NULL)
-		{
-			free(request->buffer);
-			request->buffer = NULL;			
-		}
-		return -1;
-	}
-	if(s->head == NULL) //追加的缓冲区中不存在未发送的数据
-	{
-		int n = write(s->fd,request->buffer,request->size);
-		if(n == -1)
-		{
-			switch(errno)
-			{
-				case EINTR:
-				case EAGAIN:
-					n = 0;
-					break;
-				default:
-					fprintf(stderr, "socket_server_send: write to %d (fd=%d) error.",id,s->fd);			
-					close_fd(ss,s,result);
-					if(request->buffer != NULL)  //error,free memory
-					{
-						free(request->buffer);
-						request->buffer = NULL;
-					}
-					return -1;
-			}
-		}
-		if(n == request->size) //send success
-		{
-			if(request->buffer != NULL)
-			{
-				printf("request->buffer was free\n");
-				free(request->buffer);
-				request->buffer = NULL;
-			}		
-			return 0;
-		}
-		if(n < request->size)
-		{
-			append_remaindata(s,request,n);  
-			epoll_write(ss->epoll_fd,s->fd,s,true);
-		}		
-	}
-	else
-	{
-		append_remaindata(s,request,0);
-	}
-	return 0;
-}
-
-
-static int dispose_pipe_event(struct socket_server *ss,struct socket_message *result)
-{
-	uint8_t pipe_head[PIPE_HEAD_BUFF];  //msg 
-	if(read_from_pipe(ss,pipe_head,PIPE_HEAD_BUFF) == -1)
-	{
-		return -1;
-	}
-	uint8_t type = pipe_head[0];
-	uint8_t len = pipe_head[1];
-
-	if(type == 'D')
-	{
-		struct send_data_req send; //content
-
-		if(len > MAXPIPE_CONTENT_BUFF)
-			fprintf(ERR_FILE,"dispose_pipe_event:data too large\n");	
-			return -1;
-		send.buffer = (char*)malloc(len);  //发送出去的内存，需要在send函数中释放掉申请的内存
-		if(read_from_pipe(ss,&send,len) == -1)
-		{
-			return -1;
-		}		
-		socket_server_send(ss,&send,result);
-		return 0;
-	}
-	if(type == 'C')
-	{
-		struct close_req close;
-		if(read_from_pipe(ss,&close,len) == -1)
-		{
-			return -1;
-		}
-		close_socket(ss,&close,result);
-		return 0;
-	}
-	return -1;
-}
-
-void send_notice2_netlogic_service(struct socket_server* ss)
-{
-	struct socket s = ss->ss->socket_netlog;
+	struct socket *s = ss->socket_netlog;
 	int socket = s->fd;
 	char* buf = "D"; 	//无任何意义的数据，为了唤醒 net_logic service 的 epoll
 
@@ -581,15 +585,16 @@ void send_notice2_netlogic_service(struct socket_server* ss)
 		switch(errno)
 		{
 			case EINTR:
-				continue;
+				//continue;
 			case EAGAIN:
 				return -1;
 			default:
 			fprintf(stderr, "send_notice2_netlogic_service: write to netlogic_socket %d (fd=%d) error.",s->id,s->fd);
-			close_fd(ss,s,result);
+			//close_fd(ss,s,result);
 			return -1;
 		}
 	}
+	return 0;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -647,8 +652,8 @@ static struct socket_server* socket_server_create(net_io_start* start)
 	}
 
 	ss->thread_id = start->thread_id;
-	ss->io2netlogic_que = que_pool[ss->thread_id].que_from;
-	ss->netlogic2io_que = que_pool[ss->thread_id].que_to;
+	ss->io2netlogic_que = start->que_pool[ss->thread_id].que_from;
+	ss->netlogic2io_que = start->que_pool[ss->thread_id].que_to;
 	ss->address = start->address;
 	ss->port = start->port;
 	return ss;
@@ -676,15 +681,15 @@ static int socket_server_event(struct socket_server *ss, struct socket_message *
 {
 	for( ; ; )
 	{	
-		if(ss->pipe_read)
-		{
-			if(dispose_pipe_event(ss,result) == -1)
-			{
-				fprintf(ERR_FILE,"socket_server_event:dispose pipe event failed\n");
-				return -1;
-			}
-			ss->pipe_read = false;
-		}
+		// if(ss->pipe_read)
+		// {
+		// 	if(dispose_pipe_event(ss,result) == -1)
+		// 	{
+		// 		fprintf(ERR_FILE,"socket_server_event:dispose pipe event failed\n");
+		// 		return -1;
+		// 	}
+		// 	ss->pipe_read = false;
+		// }
 		if(ss->event_index == ss->event_n)  
 		{
 			ss->event_n = sepoll_wait(ss->epoll_fd,ss->event_pool,MAX_EVENT);
@@ -798,12 +803,12 @@ static void socket_server_release(struct socket_server *ss)
 
 
 //网络io线程只负责读写和负责通知网关处理线程处理
-static int dispose_event_result(struct socket_server* ss,struct socket_message *result,int type)
+static q_node* dispose_event_result(struct socket_server* ss,struct socket_message *result,int type)
 {
 	q_node* qnode = NULL;
-	int uid = result.id;
-	char* buf = result.data;
-	int len = result.lid_size;	
+	int uid = result->id;
+	char* buf = result->data;
+	int len = result->lid_size;	
 
 	switch(type)
 	{
@@ -820,18 +825,22 @@ static int dispose_event_result(struct socket_server* ss,struct socket_message *
 			break;
 	}
 	return qnode;
-	
 }
 
 static void send_client_data2net_logic(struct socket_server* ss,q_node* qnode)
 {
+	if(qnode == NULL)
+	{
+		fprintf(ERR_FILE,"send_client_data2net_logic:a null qnode\n");
+		return; 		
+	}
 	queue_push(ss->io2netlogic_que,qnode); //封装成一个send函数
 	send_notice2_netlogic_service(ss);	   //socket发送一个字节的信息给net_logic
 	
 }
 
 //这里应该不要传递那么多参数，直接传递读配置文件后返回的指针吧
-static net_io_start* net_io_start_creat(double_que* que_pool,int thread_id,char*address,int port)
+net_io_start* net_io_start_creat(double_que* que_pool,int thread_id,char*address,int port)
 {
 	net_io_start* start = (net_io_start*)malloc(sizeof(net_io_start));
 	start->que_pool = que_pool;
@@ -849,7 +858,7 @@ static int wait_netlogic_service_connect(struct socket_server* ss)
 	int listen_fd = ss->listen_fd;
 	int socket = 0;
 
-	socket = accept(sockfd,  (struct sockaddr *)&addr, (socklen_t *)&addr_len);
+	socket = accept(listen_fd,(struct sockaddr *)&addr, (socklen_t *)&addr_len);
 	if (socket == -1)
 	{
 		fprintf(ERR_FILE,"wait_netlogic_thread_connect: socket connect failed\n");
@@ -876,9 +885,9 @@ static int wait_netlogic_service_connect(struct socket_server* ss)
 void* network_io_service_loop(void* arg)
 {
 	net_io_start* start = (net_io_start*)arg;
-	struct socket_server* ss = socket_server_create();
+	struct socket_server* ss = socket_server_create(start);
 	if(ss == NULL)
-		return -1;	
+		return NULL;	
 
 	char* address = start->address; 
 	int port = start->port;  		
@@ -887,19 +896,21 @@ void* network_io_service_loop(void* arg)
 	if(listen_id == -1)
 	{
 		fprintf(ERR_FILE,"network_io_service_loop: socket_server_listen failed\n");
-		return -1;				
+		return NULL;				
 	}
 	if(wait_netlogic_service_connect(ss) == -1)
 	{
 		fprintf(ERR_FILE,"wait_netlogic_thread_connect: apply_socket failed\n");
-		return -1;		
+		return NULL;		
 	}
 	socket_server_start(ss,listen_id);
 
 	struct socket_message result;
+	q_node* qnode = NULL;
+	int type = 0;
 	for ( ; ; )
 	{
-		int type = socket_server_event(ss,&result);
+		type = socket_server_event(ss,&result);
 		switch(type)  
 		{
 			case SOCKET_EXIT:
@@ -913,7 +924,8 @@ void* network_io_service_loop(void* arg)
 			case SOCKET_DATA:
 			case SOCKET_CLOSE:
 			case SOCKET_SUCCESS:
-				dispose_event_result(ss,result,type);
+				qnode = dispose_event_result(ss,&result,type);
+				send_client_data2net_logic(ss,qnode);
 				break;
 
 			default:
@@ -922,6 +934,7 @@ void* network_io_service_loop(void* arg)
 	}
 _EXIT:
 	socket_server_release(ss);	
+	return NULL;
 }
 
 

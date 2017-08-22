@@ -59,7 +59,7 @@ int queue_push(queue* q,q_node* qnode)
     pthread_mutex_unlock(&(q->mutex_lock));       
 }  
   
-bool queue_is_empty(queue* q)
+static bool queue_is_empty(queue* q)
 {  
     pthread_mutex_lock(&(q->mutex_lock));
     bool ret = (q->head == NULL);
