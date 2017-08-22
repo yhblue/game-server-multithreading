@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-int main()
+int main01()
 {
 	struct socket_server* ss = socket_server_create();
 	if(ss == NULL)

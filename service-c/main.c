@@ -2,6 +2,8 @@
 #include "net_logic.h"
 #include "configure.h"
 
+#include <pthread.h>
+
 void main()
 {
 	pthread_t pthread_id[8];
