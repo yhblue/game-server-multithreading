@@ -443,25 +443,33 @@ static int connect_netio_service(net_logic* nl,char* netio_addr,int netio_port)
     netio_server_addr.sin_port = htons(netio_port);
     netio_server_addr.sin_addr.s_addr = inet_addr(netio_addr);
 
-    if((connect(sockfd,(struct sockaddr*)(&netio_server_addr),sizeof(struct sockaddr))) == -1)
+    for( ;; )
     {
-       fprintf(ERR_FILE,"connect_netio_service:netlogic_thread disconnect\n");
-       return -1;
-    }	
-    //connect sussess
-    service* sv = &nl->service_pool[SERVICE_ID_NETWORK_IO];
-    sv->thread_id = SERVICE_ID_NETWORK_IO;
-    sv->sock_fd = sockfd;
-    sv->type = SERVICE_TYPE_NET_IO;
-    
-    //add to epoll
-    printf("net_logic service connect to net_io service success!\n");
-    if(epoll_add(nl->epoll_fd,sockfd,sv) == -1)
-    {
-       fprintf(ERR_FILE,"connect_netio_service:epoll_add failed\n");
-       return -1;    	
+	    if((connect(sockfd,(struct sockaddr*)(&netio_server_addr),sizeof(struct sockaddr))) == -1)
+	    {
+	        fprintf(ERR_FILE,"connect_netio_service:netlogic_thread disconnect\n");
+	        //return -1;
+	        sleep(5);
+	    }
+	    else
+	    {
+		    //connect sussess
+			service* sv = &nl->service_pool[SERVICE_ID_NETWORK_IO];
+		    sv->thread_id = SERVICE_ID_NETWORK_IO;
+		    sv->sock_fd = sockfd;
+		    sv->type = SERVICE_TYPE_NET_IO;
+		    
+		    //add to epoll
+		    printf("net_logic service connect to net_io service success!\n");
+		    if(epoll_add(nl->epoll_fd,sockfd,sv) == -1)
+		    {
+		       fprintf(ERR_FILE,"connect_netio_service:epoll_add failed\n");
+		       return -1;    	
+		    } 	
+		    return 0;    	
+	    }	
+  	
     }
-
     return 0;
 }
 
@@ -526,6 +534,7 @@ void* net_logic_service_loop(void* arg)
 		// 		break;
 		// }
 		printf("net_logic_service_loop running!\n");
+		sleep(10);
 	}
 	return NULL;
 }

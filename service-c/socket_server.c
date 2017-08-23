@@ -757,6 +757,7 @@ static int wait_netlogic_service_connect(struct socket_server* ss)
 		else
 		{
 			int port = ntohs(addr.sin_port);  //客户端的端口
+			printf("dispatch accept\n");
 			if(port == NETLOGIC_SERVICE_PORT) //必须是这个端口
 			{
 				int id = apply_id();
@@ -774,6 +775,7 @@ static int wait_netlogic_service_connect(struct socket_server* ss)
 			}
 			else
 			{
+				printf("port error\n");
 				close(socket); 
 			}				
 		}		
