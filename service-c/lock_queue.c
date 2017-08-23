@@ -1,6 +1,9 @@
 #include "lock_queue.h"
 #include "err.h"
 
+#include <malloc.h>
+#include <stdbool.h>
+
 queue* queue_creat() 
 {  
     queue* q = (queue*)malloc(sizeof(queue));  
@@ -56,7 +59,8 @@ int queue_push(queue* q,q_node* qnode)
         q->tail->next = qnode;  
         q->tail = qnode;  
     }  
-    pthread_mutex_unlock(&(q->mutex_lock));       
+    pthread_mutex_unlock(&(q->mutex_lock));     
+    return 0;  
 }  
   
 static bool queue_is_empty(queue* q)

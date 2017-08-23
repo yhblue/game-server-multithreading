@@ -499,12 +499,14 @@ net_logic_start* net_logic_start_creat(double_que* que_pool)
 	if(start == NULL)
 	{
        fprintf(ERR_FILE,"net_logic_start_creat:start malloc failed\n");
-       return -1;			
+       return NULL;			
 	}
 	start->que_pool = que_pool;
 	start->thread_id = 1;
 	start->netio_addr = "127.0.0.1";
 	start->netio_port = 8888;
+
+	return start;
 }
 
 void* net_logic_service_loop(void* arg)
@@ -514,12 +516,12 @@ void* net_logic_service_loop(void* arg)
 	if(nt == NULL)
 	{
        fprintf(ERR_FILE,"net_logic_service_loop:connect_netio_service disconnect\n");
-       return -1;		
+       return NULL;		
 	}
-	if(service_connect_establish(nt,start) == -1)
+	if(service_connect_establish(start,nt) == -1)
 	{
        fprintf(ERR_FILE,"net_logic_service_loop:service_connect_establish failed\n");
-       return -1;			
+       return NULL;			
 	}
 	int type = 0;
 
@@ -539,5 +541,5 @@ void* net_logic_service_loop(void* arg)
 		// }
 		printf("net_logic_service_loop running!\n");
 	}
-
+	return NULL;
 }

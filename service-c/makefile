@@ -5,7 +5,7 @@ OBJS=$(SRCS:.c=.o)
 EXE=socket
 
 socket:$(OBJS)
-	$(CC) -g -Wall -o $@ $(OBJS) -lpthread
+	$(CC) -g -Wall -o $@ $(OBJS) -lpthread -lprotobuf-c
 	@echo '--------complete----------'
 
 .c.o:
