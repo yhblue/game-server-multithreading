@@ -362,7 +362,7 @@ static int dispose_queue_event(net_logic* nt)
 	return 0;
 }
 
-int dispose_threading_read_msg(net_logic* nt,service* sv)
+static int dispose_threading_read_msg(net_logic* nt,service* sv)
 {
 	char buf[64];
 	int n = read(sv->sock_fd,buf,sizeof(buf));  //写到了这里接着写下去

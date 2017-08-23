@@ -19,13 +19,13 @@
 #include <assert.h>
 #include <string.h>
 
-#define DATA_LEN_SIZE   			1                 //1个字节存储长度信息
-#define MAX_EVENT 					64                //epoll_wait一次最多返回64个事件
+#define DATA_LEN_SIZE   			  1                 //1个字节存储长度信息
+#define MAX_EVENT 						  64                //epoll_wait一次最多返回64个事件
 
-#define SOCKET_READBUFF 			128
+#define SOCKET_READBUFF 		    128
 #define PIPE_HEAD_BUFF    			128   
-#define MAXPIPE_CONTENT_BUFF    	128     
-#define MAX_BACK_LOG 				32
+#define MAXPIPE_CONTENT_BUFF    128     
+#define MAX_BACK_LOG 						32
 
 #define SOCKET_TYPE_INVALID          1		   
 #define SOCKET_TYPE_LISTEN_NOTADD    2		
@@ -36,7 +36,7 @@
 #define SOCKET_TYPE_OTHER            7		
 #define SOCKET_TYPE_PIPE_READ        8
 #define SOCKET_TYPE_PIPE_WRITE       9
-#define SOCKET_TYPE_NETLOGIC		10
+#define SOCKET_TYPE_NETLOGIC				10
 
 struct append_buffer
 {
@@ -366,37 +366,6 @@ static int send_data(struct socket_server* ss,struct socket *s,struct socket_mes
 	return 0;
 }
 
-static int pipe_init(struct socket_server* ss,int pipe_type)
-{
-	int pipe_fd[2];
-	if(pipe(pipe_fd) == -1)
-	{
-		return -1;
-	}
-	if(pipe_type == SOCKET_TYPE_PIPE_READ)
-	{
-//		close(pipe_fd[1]);
-		int id = apply_id();
-		printf("pipe init\n");
-		struct socket *s = apply_socket(ss,pipe_fd[0],id,true);
-		printf("pipe socket add to epoll\n");
-
-		if(s == NULL)
-		{
-			return -1;
-		}
-		s->type = SOCKET_TYPE_PIPE_READ;		
-		ss->pipe_read_fd = pipe_fd[0];
-		ss->pipe_write_fd = pipe_fd[1];
-	}
-	else  
-	{
-		close(pipe_fd[0]); 
-		ss->pipe_write_fd = pipe_fd[1];
-	}
-	return pipe_fd[0];
-}
-
 
 //##########
 // static int close_socket(struct socket_server *ss,struct close_req *close,struct socket_message * result)
@@ -647,9 +616,6 @@ static int socket_server_event(struct socket_server *ss, struct socket_message *
 
 			case SOCKET_TYPE_INVALID:
 				fprintf(ERR_FILE,"socket_server_event:a invalied socket from pool\n");
-				break;
-
-			case SOCKET_TYPE_NETLOGIC:
 				break;
 
 			case SOCKET_TYPE_CONNECT_ADD:
@@ -1025,5 +991,35 @@ struct request_package
 // 	return -1;
 // }
 
+// static int pipe_init(struct socket_server* ss,int pipe_type)
+// {
+// 	int pipe_fd[2];
+// 	if(pipe(pipe_fd) == -1)
+// 	{
+// 		return -1;
+// 	}
+// 	if(pipe_type == SOCKET_TYPE_PIPE_READ)
+// 	{
+// //		close(pipe_fd[1]);
+// 		int id = apply_id();
+// 		printf("pipe init\n");
+// 		struct socket *s = apply_socket(ss,pipe_fd[0],id,true);
+// 		printf("pipe socket add to epoll\n");
+
+// 		if(s == NULL)
+// 		{
+// 			return -1;
+// 		}
+// 		s->type = SOCKET_TYPE_PIPE_READ;		
+// 		ss->pipe_read_fd = pipe_fd[0];
+// 		ss->pipe_write_fd = pipe_fd[1];
+// 	}
+// 	else  
+// 	{
+// 		close(pipe_fd[0]); 
+// 		ss->pipe_write_fd = pipe_fd[1];
+// 	}
+// 	return pipe_fd[0];
+// }
 
 */
