@@ -3,7 +3,7 @@
 #include "configure.h"
 
 #include <pthread.h>
-
+  
 int main()
 {
 	pthread_t pthread_id[8];
