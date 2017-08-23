@@ -1,0 +1,7 @@
+#ifndef _SERVICE_PORT_H
+#define _SERVICE_PORT_H
+
+#define NETWORK_IO_SERVICE_PORT  8000
+#define NETLOGIC_SERVICE_PORT    8001
+
+#endif

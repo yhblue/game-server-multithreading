@@ -5,6 +5,7 @@
 #include "socket_epoll.h"
 #include "lock_queue.h"
 #include "err.h"
+#include "port.h"
 
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -573,10 +574,9 @@ static int socket_server_event(struct socket_server *ss, struct socket_message *
 			if(dispose_queue_event(ss) == -1)  //queue null
 			{
 				ss->que_check = false;
-				fprintf(ERR_FILE,"socket_server_event:dispose pipe event failed\n");
 				return -1;
 			}
-			else  //have data
+			else  							   //have data
 			{
 				continue;
 			}		
@@ -635,7 +635,7 @@ static int socket_server_event(struct socket_server *ss, struct socket_message *
 				}
 				if(eve->error)
 				{
-					
+										
 				}
 				break;
 		}
@@ -746,26 +746,39 @@ static int wait_netlogic_service_connect(struct socket_server* ss)
 	int listen_fd = ss->listen_fd;
 	int socket = 0;
 
-	socket = accept(listen_fd,(struct sockaddr *)&addr, (socklen_t *)&addr_len);
-	if (socket == -1)
+	for( ; ; )
 	{
-		fprintf(ERR_FILE,"wait_netlogic_thread_connect: socket connect failed\n");
-		return -1;
-	}   
-	else
-	{
-		int id = apply_id();
-		struct socket*s = apply_socket(ss,socket,id,true);
-		if(s == NULL)
+		socket = accept(listen_fd,(struct sockaddr *)&addr, (socklen_t *)&addr_len);
+		if (socket == -1)
 		{
-			fprintf(ERR_FILE,"wait_netlogic_thread_connect: apply_socket failed\n");
+			fprintf(ERR_FILE,"wait_netlogic_thread_connect: socket connect failed\n");
 			return -1;
-		}
-		s->type = SOCKET_TYPE_NETLOGIC;//标记为与网络逻辑线程通信的socket
-		ss->socket_netlog = s;		   //与netlogic通信的socket，记录下来
+		}   
+		else
+		{
+			int port = ntohs(addr.sin_port);  //客户端的端口
+			if(port == NETLOGIC_SERVICE_PORT) //必须是这个端口
+			{
+				int id = apply_id();
+				struct socket* s = apply_socket(ss,socket,id,true);
+				if(s == NULL)
+				{
+					fprintf(ERR_FILE,"wait_netlogic_thread_connect: apply_socket failed\n");
+					return -1;
+				}
+				s->type = SOCKET_TYPE_NETLOGIC;//标记为与网络逻辑线程通信的socket
+				ss->socket_netlog = s;		   //与netlogic通信的socket，记录下来
 
-		printf("net_logic service connect!\n");
+				printf("net_logic service connect!\n");	
+				return 0;
+			}
+			else
+			{
+				close(socket); 
+			}				
+		}		
 	}
+
 	return 0;
 }
 

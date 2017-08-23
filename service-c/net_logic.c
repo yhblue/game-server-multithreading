@@ -7,6 +7,7 @@
 #include "configure.h"
 #include "proto.h"
 #include "socket_server.h"
+#include "port.h"
 
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -106,10 +107,10 @@ double_que* communication_que_creat()
 	return que_pool;
 }
 
-
+//这个函数看看能不能改一下，这个函数必须依赖网络IO线程按照指定格式读，这样效率低
 static deserialize* unpack_user_data(unsigned char * data_pack,int len)
 {
-	unsigned char proto_type = data_pack[0]; 	//记录用的.proto文件中哪个message来序列化  
+	unsigned char proto_type = data_pack[0]; 	 //记录用的.proto文件中哪个message来序列化  
 	unsigned char* seria_data = data_pack + 1;   //data_pack 是网络IO线程中分配的内存，反序列化完之后free掉
 	deserialize* data = (deserialize*)malloc(sizeof(deserialize));
 	void * msg = NULL;
@@ -133,35 +134,10 @@ static deserialize* unpack_user_data(unsigned char * data_pack,int len)
 	}	
 	data->proto_type = proto_type;
 	data->buffer = msg;
+	free(data_pack); 	//客户端发送上来的数据反序列化之后释放掉内存
 	return data;
 }
 
-
-
-static int apply_threading_id()
-{
-	static int id = -1;
-	id ++;
-	return id;	
-}
-
-// static process* apply_process(net_logic* nt,int socket_fd,int p_id,bool add_epoll)
-// {
-// 	service* sv = &nt->service_pool[p_id % GAME_THREADING_NUM];
-// 	if(sv == NULL)
-// 	{
-// 		return NULL;
-// 	}
-// 	if(add_epoll)
-// 	{
-// 		if(epoll_add(nt->epoll_fd,socket_fd,sv) == -1)
-// 		{
-// 			return NULL;
-// 		}
-// 	}	
-// 	sv->p_id = p_id;
-// 	sv->sock_fd = socket_fd;
-// }
 
 static net_logic* net_logic_creat(net_logic_start* start)
 {
@@ -231,8 +207,6 @@ static net_logic* net_logic_creat(net_logic_start* start)
 	nt->check_que = false;
 	nt->event_index = 0;
 	nt->event_n = 0;
-	// nt->data_head_size = sizeof(data2_game);
-	// nt->inform_size = sizeof(imform2_game);
 
 	nt->thread_id = start->thread_id;
 	nt->que_pool = start->que_pool;
@@ -339,7 +313,6 @@ static int dispose_queue_event(net_logic* nt)
 	if(qnode == NULL) //队列无数据
 	{
 		return -1;
-		//nl->thread_id = -1; //这个线程的消息队列没有数据了
 	}
 	else
 	{
@@ -449,8 +422,9 @@ static int net_logic_event(net_logic *nt)
 
 static int connect_netio_service(net_logic* nl,char* netio_addr,int netio_port)
 {
-    struct sockaddr_in server_addr;  //存放服务地址信息
-    
+    struct sockaddr_in netio_server_addr;  //存放服务地址信息
+    struct sockaddr_in netlog_service_addr;
+
     //creat socket
     int sockfd = socket(AF_INET,SOCK_STREAM,0);
     if( sockfd == -1 )
@@ -458,14 +432,18 @@ static int connect_netio_service(net_logic* nl,char* netio_addr,int netio_port)
        fprintf(ERR_FILE,"connect_netio_service:socket creat failed\n");
        return -1;
     }
-    
-    //set address
-    memset(&server_addr,0,sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(netio_port);
-    server_addr.sin_addr.s_addr = inet_addr(netio_addr);
-        
-    if((connect(sockfd,(struct sockaddr*)(&server_addr),sizeof(struct sockaddr))) == -1)
+
+    netlog_service_addr.sin_family = AF_INET;
+    netlog_service_addr.sin_port = htons(NETLOGIC_SERVICE_PORT);		//8001
+    bind(sockfd,(struct sockaddr*)(&netlog_service_addr),sizeof(netlog_service_addr));
+
+    //set service address
+    memset(&netio_server_addr,0,sizeof(netio_server_addr));
+    netio_server_addr.sin_family = AF_INET;
+    netio_server_addr.sin_port = htons(netio_port);
+    netio_server_addr.sin_addr.s_addr = inet_addr(netio_addr);
+
+    if((connect(sockfd,(struct sockaddr*)(&netio_server_addr),sizeof(struct sockaddr))) == -1)
     {
        fprintf(ERR_FILE,"connect_netio_service:netlogic_thread disconnect\n");
        return -1;
@@ -475,7 +453,15 @@ static int connect_netio_service(net_logic* nl,char* netio_addr,int netio_port)
     sv->thread_id = SERVICE_ID_NETWORK_IO;
     sv->sock_fd = sockfd;
     sv->type = SERVICE_TYPE_NET_IO;
+    
     //add to epoll
+    printf("net_logic service connect to net_io service success!\n");
+    if(epoll_add(nl->epoll_fd,sockfd,sv) == -1)
+    {
+       fprintf(ERR_FILE,"connect_netio_service:epoll_add failed\n");
+       return -1;    	
+    }
+
     return 0;
 }
 
@@ -504,7 +490,7 @@ net_logic_start* net_logic_start_creat(double_que* que_pool)
 	start->que_pool = que_pool;
 	start->thread_id = 1;
 	start->netio_addr = "127.0.0.1";
-	start->netio_port = 8888;
+	start->netio_port = 8000;
 
 	return start;
 }
@@ -543,3 +529,43 @@ void* net_logic_service_loop(void* arg)
 	}
 	return NULL;
 }
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+
+static int apply_threading_id()
+{
+	static int id = -1;
+	id ++;
+	return id;	
+}
+
+// static process* apply_process(net_logic* nt,int socket_fd,int p_id,bool add_epoll)
+// {
+// 	service* sv = &nt->service_pool[p_id % GAME_THREADING_NUM];
+// 	if(sv == NULL)
+// 	{
+// 		return NULL;
+// 	}
+// 	if(add_epoll)
+// 	{
+// 		if(epoll_add(nt->epoll_fd,socket_fd,sv) == -1)
+// 		{
+// 			return NULL;
+// 		}
+// 	}	
+// 	sv->p_id = p_id;
+// 	sv->sock_fd = socket_fd;
+// }
+
+ */
