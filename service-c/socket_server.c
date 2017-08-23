@@ -275,9 +275,9 @@ static int dispose_readmessage(struct socket_server *ss,struct socket *s, struct
 {
 	unsigned char len = 0;
 	int n = (int)read(s->fd,&len,DATA_LEN_SIZE);
-	assert(n == DATA_LEN_SIZE);
 	if(n <= 0)
 		goto _err;
+	assert(n == DATA_LEN_SIZE);
 
 	char* buffer = (char*)malloc(len);  
 	if(buffer == NULL) 
@@ -286,10 +286,13 @@ static int dispose_readmessage(struct socket_server *ss,struct socket *s, struct
 		return -1;
 	}
 	memset(buffer,0,len);
+	printf("need to read:%d\n",len);
 	n = (int)read(s->fd,buffer,len);
-	assert(n == len);
+	printf("read is :%d\n",n);
 	if(n <= 0)
 		goto _err;
+
+	assert(n == len);
 
 	result->id = s->id;
 	result->lid_size = n;
@@ -621,6 +624,7 @@ static int socket_server_event(struct socket_server *ss, struct socket_message *
 			case SOCKET_TYPE_CONNECT_ADD:
 				if(eve->read)
 				{
+					//sleep(1);
 					int ret_type = dispose_readmessage(ss,s,result);
 					if(ret_type == -1)
 					{
@@ -702,6 +706,7 @@ static q_node* dispose_event_result(struct socket_server* ss,struct socket_messa
 	{
 		case SOCKET_DATA:
 			qnode = set_qnode(buf,TYPE_DATA,0,uid,len,NULL);
+			printf("set_qnode command!\n");
 			break;
 
 		case SOCKET_CLOSE:
@@ -724,7 +729,6 @@ static void send_client_data2net_logic(struct socket_server* ss,q_node* qnode)
 	}
 	queue_push(ss->io2netlogic_que,qnode); //封装成一个send函数
 	send_notice2_netlogic_service(ss);	   //socket发送一个字节的信息给net_logic
-	
 }
 
 //这里应该不要传递那么多参数，直接传递读配置文件后返回的指针吧
@@ -808,11 +812,13 @@ void* network_io_service_loop(void* arg)
 		fprintf(ERR_FILE,"wait_netlogic_thread_connect: apply_socket failed\n");
 		return NULL;		
 	}
+
 	socket_server_start(ss,listen_id);
 
 	struct socket_message result;
 	q_node* qnode = NULL;
 	int type = 0;
+	printf("netio service start!\n");
 	for ( ; ; )
 	{
 		type = socket_server_event(ss,&result);
@@ -822,7 +828,7 @@ void* network_io_service_loop(void* arg)
 				goto _EXIT;
 				
 			case SOCKET_ACCEPT://client connect
-				printf("accept[id=%d] from [id=%d]",result.id,result.lid_size);
+				printf("accept[id=%d] from [id=%d]\n",result.id,result.lid_size);
 				socket_server_start(ss,result.id);  	//add to epoll
 				break;
 

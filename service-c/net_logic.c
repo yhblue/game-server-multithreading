@@ -59,7 +59,7 @@ typedef struct _service
 	int thread_id;
 	int sock_fd;
 	int type;
-	queue* que_2_netlog;
+	//queue* que_2_netlog;
 }service;
 
 typedef struct _send_game_pack
@@ -308,7 +308,7 @@ static void dispose_netio_thread_que(queue* que,q_node* qnode)
 static int dispose_queue_event(net_logic* nt)
 {
 	int service_type = nt->current_serice->type;
-	queue* que = nt->current_serice->que_2_netlog;
+	//queue* que = nt->current_serice->que_2_netlog;
 	q_node* qnode = queue_pop(que);
 	if(qnode == NULL) //队列无数据
 	{
@@ -366,7 +366,7 @@ static int net_logic_event(net_logic *nt)
 {
 	for( ; ; )
 	{
-		if(nt->check_que == true)
+		if(nt->check_que == true) 
 		{
 			int ret = dispose_queue_event(nt);
 			if(ret == -1) //queue is null
@@ -394,7 +394,7 @@ static int net_logic_event(net_logic *nt)
 		struct event* eve = &nt->event_pool[nt->event_index++];  //read or write
 		service* sv = eve->s_p; 			                	 //which process socket
 
-		switch(sv->type)
+		switch(sv->type)			
 		{
 			case SERVICE_TYPE_NET_IO:  	  	//为了唤醒epoll，去处理消息队列的信息
 			case SERVICE_TYPE_GAME_LOGIC: 	//游戏逻辑处理进程，去处理广播信息		
