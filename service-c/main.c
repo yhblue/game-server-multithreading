@@ -11,7 +11,7 @@ int main()
 	double_que* que_pool = communication_que_creat();
 
 	//网络IO线程
-	net_io_start* netio_start = net_io_start_creat(que_pool,0,"127.0.0.1",8888);
+	net_io_start* netio_start = net_io_start_creat(que_pool,0,"127.0.0.1",8000);
 	pthread_create(&pthread_id[0],NULL,network_io_service_loop,netio_start);  
 
 	//网络路由线程
