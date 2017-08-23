@@ -36,12 +36,12 @@
 #define SOCKET_TYPE_OTHER            7		
 #define SOCKET_TYPE_PIPE_READ        8
 #define SOCKET_TYPE_PIPE_WRITE       9
-#define SOCKET_TYPE_NETLOGIC				10
+#define SOCKET_TYPE_NETLOGIC		10
 
 struct append_buffer
 {
 	struct append_buffer* next;
-	void* buffer;     //in order to free memery
+	void* buffer;     	//in order to free memery
 	void* current;
 	int size;        	//这块缓冲区中剩余未发送的字节数
 };
@@ -65,40 +65,15 @@ struct socket_server
     int event_index;             //from 0 to 63
     int pipe_read_fd;
     int pipe_write_fd;
-    bool pipe_read;
-//    queue* que;  								 //和网关逻辑线程通信的消息队列
     queue* io2netlogic_que;
     queue* netlogic2io_que;
-    int thread_id;
+    int service_id;
     char* address;
     int port;
     int listen_fd;
     struct socket* socket_netlog;
+    bool que_check;               //检测消息队列的标志位
 };
-
-struct request_close 
-{
-	int id;
-};
-
-struct request_send
-{
-	int id;         //4
-	int size;	   	//4
-	char * buffer;	//4
-};
-
-struct request_package
-{
-	uint8_t header[8];//header[0]->massage type header[1]->massage len
-	union
-	{
-		char buffer[256];
-		struct request_send send;
-		struct request_close close;	
-	}msg;
-};
-
 
 //----------------------------------------------------------------------------------------------------------------------
 // static int append_remaindata(struct socket *s,struct send_data_req * request,int start)
@@ -258,7 +233,7 @@ static int dispose_accept(struct socket_server *ss,struct socket *s,struct socke
 	return 0;   
 }
 
-//这个函数要修改，增加内存泄露管理
+//这个函数要修改，增加内存泄露管理，已修改
 static void close_fd(struct socket_server *ss,struct socket *s,struct socket_message * result)
 {
 	if(s->type == SOCKET_TYPE_INVALID)
@@ -422,32 +397,6 @@ static int pipe_init(struct socket_server* ss,int pipe_type)
 	return pipe_fd[0];
 }
 
-//#####
-// static int read_from_pipe(struct socket_server *ss,void* buffer,int len)
-// {
-// 	int n = 0;
-// 	for( ; ; )
-// 	{
-// 		n = read(ss->pipe_read_fd,buffer,len);
-// 		if(n < 0)
-// 		{
-// 			if(errno == EINTR)
-// 				continue;
-// 			else
-// 			{
-// 				fprintf(ERR_FILE, "read_from_pipe: read pipe error %s.",strerror(errno));
-// 				return -1;					
-// 			}
-			
-// 		}
-// 		if(n == len)
-// 		{
-// 			return 0;
-// 		}
-// 	}
-// 	fprintf(ERR_FILE, "read_from_pipe: read pipe error,need to read size=%d but result size=%d\n",len,n);
-// 	return -1;
-// }
 
 //##########
 // static int close_socket(struct socket_server *ss,struct close_req *close,struct socket_message * result)
@@ -534,44 +483,6 @@ static int pipe_init(struct socket_server* ss,int pipe_type)
 // 	return 0;
 // }
 
-//#####
-// static int dispose_pipe_event(struct socket_server *ss,struct socket_message *result)
-// {
-// 	uint8_t pipe_head[PIPE_HEAD_BUFF];  //msg 
-// 	if(read_from_pipe(ss,pipe_head,PIPE_HEAD_BUFF) == -1)
-// 	{
-// 		return -1;
-// 	}
-// 	uint8_t type = pipe_head[0];
-// 	uint8_t len = pipe_head[1];
-
-// 	if(type == 'D')
-// 	{
-// 		struct send_data_req send; //content
-
-// 		if(len > MAXPIPE_CONTENT_BUFF)
-// 			fprintf(ERR_FILE,"dispose_pipe_event:data too large\n");	
-// 			return -1;
-// 		send.buffer = (char*)malloc(len);  //发送出去的内存，需要在send函数中释放掉申请的内存
-// 		if(read_from_pipe(ss,&send,len) == -1)
-// 		{
-// 			return -1;
-// 		}		
-// 		socket_server_send(ss,&send,result);
-// 		return 0;
-// 	}
-// 	if(type == 'C')
-// 	{
-// 		struct close_req close;
-// 		if(read_from_pipe(ss,&close,len) == -1)
-// 		{
-// 			return -1;
-// 		}
-// 		close_socket(ss,&close,result);
-// 		return 0;
-// 	}
-// 	return -1;
-// }
 
 static int send_notice2_netlogic_service(struct socket_server* ss)
 {
@@ -611,7 +522,7 @@ static struct socket_server* socket_server_create(net_io_start* start)
 	ss->epoll_fd = efd;
 	ss->event_n = 0;
 	ss->event_index = 0;
-	ss->pipe_read = false;
+	ss->que_check = false;
 	ss->socket_pool = (struct socket*)malloc(sizeof(struct socket)*MAX_SOCKET);
 	if(ss->socket_pool == NULL)
 	{
@@ -640,22 +551,13 @@ static struct socket_server* socket_server_create(net_io_start* start)
 		s->head = NULL;
 		s->tail = NULL;
 	}
-	int pipe_read = pipe_init(ss,SOCKET_TYPE_PIPE_READ); //read type pipe
-	if( pipe_read == -1)
-	{
-		fprintf(ERR_FILE,"socket_server_create:pipe init failed\n");
-		epoll_release(efd);
-		close(pipe_read);
-		free(ss->socket_pool);		
-		free(ss->event_pool);
-		return NULL;
-	}
 
-	ss->thread_id = start->thread_id;
-	ss->io2netlogic_que = start->que_pool[ss->thread_id].que_from;
-	ss->netlogic2io_que = start->que_pool[ss->thread_id].que_to;
+	ss->service_id = start->thread_id;
+	ss->io2netlogic_que = start->que_pool[ss->service_id].que_from;
+	ss->netlogic2io_que = start->que_pool[ss->service_id].que_to;
 	ss->address = start->address;
 	ss->port = start->port;
+	
 	return ss;
 }
 
@@ -677,19 +579,39 @@ static int socket_server_listen(struct socket_server *ss,const char* host,int po
 	return -1;
 }
 
+static int dispose_queue_event(struct socket_server *ss)
+{
+	queue* que = ss->netlogic2io_que;
+	q_node* qnode = queue_pop(que);
+	if(qnode == NULL) //队列无数据
+	{
+		return -1; 
+	}
+	else
+	{
+		//把消息队列的数据的内容部分广播给指定玩家
+		return 0;
+	}
+	return -1;
+}
+
 static int socket_server_event(struct socket_server *ss, struct socket_message * result)
 {
 	for( ; ; )
 	{	
-		// if(ss->pipe_read)
-		// {
-		// 	if(dispose_pipe_event(ss,result) == -1)
-		// 	{
-		// 		fprintf(ERR_FILE,"socket_server_event:dispose pipe event failed\n");
-		// 		return -1;
-		// 	}
-		// 	ss->pipe_read = false;
-		// }
+		if(ss->que_check)
+		{
+			if(dispose_queue_event(ss) == -1)  //queue null
+			{
+				ss->que_check = false;
+				fprintf(ERR_FILE,"socket_server_event:dispose pipe event failed\n");
+				return -1;
+			}
+			else  //have data
+			{
+				continue;
+			}		
+		}
 		if(ss->event_index == ss->event_n)  
 		{
 			ss->event_n = sepoll_wait(ss->epoll_fd,ss->event_pool,MAX_EVENT);
@@ -711,9 +633,9 @@ static int socket_server_event(struct socket_server *ss, struct socket_message *
 		}
 		switch(s->type) 
 		{
-			case SOCKET_TYPE_PIPE_READ:	
-			ss->pipe_read = true;
-					break;
+			case SOCKET_TYPE_NETLOGIC:
+				ss->que_check = true;
+				break;					
 
 			case SOCKET_TYPE_LISTEN_ADD: //client connect
 				if(dispose_accept(ss,s,result) == 0)
@@ -775,7 +697,7 @@ static int socket_server_start(struct socket_server *ss,int id)
 		}
 		s->type = (s->type == SOCKET_TYPE_CONNECT_NOTADD) ? SOCKET_TYPE_CONNECT_ADD : SOCKET_TYPE_LISTEN_ADD;//change
 
-		return SOCKET_SUCCESS;//成功加入到 epoll 中管理。
+		return SOCKET_SUCCESS;	//成功加入到 epoll 中管理。
 	}
 	return SOCKET_ERROR;
 }
@@ -875,6 +797,8 @@ static int wait_netlogic_service_connect(struct socket_server* ss)
 		}
 		s->type = SOCKET_TYPE_NETLOGIC;//标记为与网络逻辑线程通信的socket
 		ss->socket_netlog = s;		   //与netlogic通信的socket，记录下来
+
+		printf("net_logic service connect!\n");
 	}
 	return 0;
 }
@@ -984,8 +908,7 @@ _EXIT:
 
 
 
-//--------------------------------------------------------------------------------------------------------------
-
+/*--------------------------------------------------------------------------------------------------------------
 // void read_test(struct socket_server* ss,int id,const char* data,int size,struct socket_message *result)
 // {
 // 	struct send_data_req * request = (struct send_data_req*)malloc(sizeof(struct send_data_req));
@@ -995,3 +918,112 @@ _EXIT:
 // 	socket_server_send(ss,request,result);
 // }
 
+struct request_close 
+{
+	int id;
+};
+
+struct request_send
+{
+	int id;         //4
+	int size;	   	//4
+	char * buffer;	//4
+};
+
+struct request_package
+{
+	uint8_t header[8];//header[0]->massage type header[1]->massage len
+	union
+	{
+		char buffer[256];
+		struct request_send send;
+		struct request_close close;	
+	}msg;
+};
+
+
+	// int pipe_read = pipe_init(ss,SOCKET_TYPE_PIPE_READ); //read type pipe
+	// if( pipe_read == -1)
+	// {
+	// 	fprintf(ERR_FILE,"socket_server_create:pipe init failed\n");
+	// 	epoll_release(efd);
+	// 	close(pipe_read);
+	// 	free(ss->socket_pool);		
+	// 	free(ss->event_pool);
+	// 	return NULL;
+	// }
+
+
+
+//#####
+// static int dispose_pipe_event(struct socket_server *ss,struct socket_message *result)
+// {
+// 	uint8_t pipe_head[PIPE_HEAD_BUFF];  //msg 
+// 	if(read_from_pipe(ss,pipe_head,PIPE_HEAD_BUFF) == -1)
+// 	{
+// 		return -1;
+// 	}
+// 	uint8_t type = pipe_head[0];
+// 	uint8_t len = pipe_head[1];
+
+// 	if(type == 'D')
+// 	{
+// 		struct send_data_req send; //content
+
+// 		if(len > MAXPIPE_CONTENT_BUFF)
+// 			fprintf(ERR_FILE,"dispose_pipe_event:data too large\n");	
+// 			return -1;
+// 		send.buffer = (char*)malloc(len);  //发送出去的内存，需要在send函数中释放掉申请的内存
+// 		if(read_from_pipe(ss,&send,len) == -1)
+// 		{
+// 			return -1;
+// 		}		
+// 		socket_server_send(ss,&send,result);
+// 		return 0;
+// 	}
+// 	if(type == 'C')
+// 	{
+// 		struct close_req close;
+// 		if(read_from_pipe(ss,&close,len) == -1)
+// 		{
+// 			return -1;
+// 		}
+// 		close_socket(ss,&close,result);
+// 		return 0;
+// 	}
+// 	return -1;
+// }
+
+			case SOCKET_TYPE_PIPE_READ:	
+				ss->pipe_read = true;
+				break;
+
+//#####
+// static int read_from_pipe(struct socket_server *ss,void* buffer,int len)
+// {
+// 	int n = 0;
+// 	for( ; ; )
+// 	{
+// 		n = read(ss->pipe_read_fd,buffer,len);
+// 		if(n < 0)
+// 		{
+// 			if(errno == EINTR)
+// 				continue;
+// 			else
+// 			{
+// 				fprintf(ERR_FILE, "read_from_pipe: read pipe error %s.",strerror(errno));
+// 				return -1;					
+// 			}
+			
+// 		}
+// 		if(n == len)
+// 		{
+// 			return 0;
+// 		}
+// 	}
+// 	fprintf(ERR_FILE, "read_from_pipe: read pipe error,need to read size=%d but result size=%d\n",len,n);
+// 	return -1;
+// }
+
+
+*/
