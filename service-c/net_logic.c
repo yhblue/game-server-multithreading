@@ -363,10 +363,7 @@ static int dispose_queue_event(net_logic* nt)
 	{
 		switch(service_type)
 		{
-			case SERVICE_TYPE_NET_IO:
-				printf("--------%c-----------\n",qnode->msg_type);
-				printf("--------%d-----------\n",qnode->uid);
-				printf("--------%d-----------\n",qnode->len);				
+			case SERVICE_TYPE_NET_IO:			
 				dispose_netio_thread_que(que,qnode);
 				break;
 
