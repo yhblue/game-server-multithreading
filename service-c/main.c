@@ -8,7 +8,7 @@ int main()
 {
 	pthread_t pthread_id[8];
 
-	double_que* que_pool = communication_que_creat();
+	queue* que_pool = message_que_creat();
 
 	//网络IO线程
 	net_io_start* netio_start = net_io_start_creat(que_pool,0,"127.0.0.1",8000);

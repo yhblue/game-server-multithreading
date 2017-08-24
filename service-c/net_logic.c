@@ -76,14 +76,15 @@ typedef struct _imform2_game
 
 typedef struct _net_logic
 {
-	double_que* que_pool;  					//存储所有线程的queue,不需分配内存
+//	double_que* que_pool;  					//存储所有线程的queue,不需分配内存
+	queue* que_pool;
 	int epoll_fd;				
 	struct event* event_pool;
 	bool check_que;
 	int event_index;
 	int event_n;	
-	service* current_serice;            //epoll return 
-	service* service_pool; 			    //线程的信息的存储结构
+	service* current_serice;            	 //epoll return 
+	service* service_pool; 			    	 //线程的信息的存储结构
 	int* thread_socket_fd;
 	unsigned char* sock_id_2_threadsock_fd;  //下标是socket id，值是thread_socket_fd[] 中的下标	
 	int thread_id;
@@ -96,13 +97,13 @@ typedef struct _deserialize
 }deserialize;
 
 
-double_que* communication_que_creat()
+queue* message_que_creat()
 {
-	double_que* que_pool = (double_que*)malloc(sizeof(double_que));
-	for(int i=0; i<MAX_SERVICE-1; i++)
+	queue* que_pool = (queue*)malloc(sizeof(queue)*MESSAGE_QUEUE_NUM);
+	if(que_pool == NULL)
 	{
-		que_pool[i].que_to = queue_creat();
-		que_pool[i].que_from = queue_creat();
+		fprintf(ERR_FILE,"message_que_creat:que_pool malloc failed\n");
+		return NULL;		
 	}
 	return que_pool;
 }
@@ -210,6 +211,7 @@ static net_logic* net_logic_creat(net_logic_start* start)
 
 	nt->thread_id = start->thread_id;
 	nt->que_pool = start->que_pool;
+
 	return nt;
 }
 
@@ -232,6 +234,41 @@ static q_node* pack_user_data(deserialize* desseria_data,int uid_pack)
 
 	return qnode;
 }
+
+//测试 client -> netio -> net_logic打印反序列化之后的数据 
+void send_data_test(q_node* qnode)
+{
+	if(qnode == NULL)
+	{
+		fprintf(ERR_FILE,"send_data_test:qnode is null\n");
+		return NULL;		
+	}
+	char msg_type = qnode->msg_type;
+	char proto_type = qnode->proto_type;
+	unsigned char* buffer = qnode->buffer;
+	switch(proto_type)
+	{
+		case LOG_REQ:
+
+			break;		
+
+		case HERO_MSG_REQ:
+			{
+				HeroMsg* msg = (HeroMsg*)buffer;
+				printf("type is HeroMsg,msg->uid = %d,msg->point_x = %d,msg->point_y = %d\n",msg->uid,msg->point_x,msg->point_y);
+				break;	
+			}
+			
+		case CONNECT_REQ:
+
+			break;				
+
+		case HEART_REQ:
+
+			break;			
+	}
+}
+
 
 static int send_data_2_game_logic(net_logic* nl,q_node* qnode)
 {
@@ -277,20 +314,22 @@ static imform2_game* pack_inform_data(unsigned char len_pack,int uid_pack,char t
 	return NULL;
 }
 
-static void dispose_netio_thread_que(queue* que,q_node* qnode)
+static void dispose_netio_thread_que(net_logic* nt,q_node* qnode)
 {
 	char type = qnode->msg_type;  		// 'D' 'S' 'C'
 	int uid = qnode->uid;
 	unsigned char* data = qnode->buffer;
 	int content_len = qnode->len; 		//内容的长度(即客户端原始发送上来的数据的长度)	
-
+	queue* que = nt->que_pool[QUE_ID_NETIO_2_NETLOGIC];
 	switch(type)
 	{
-		case TYPE_DATA:     			// 'D' 数据包--pack--send
+		case TYPE_DATA:     			// 'D' data--upack--pack--send
 			{
 				deserialize* deseria_data = unpack_user_data(data,content_len);    	//upack
 				q_node* send_qnode = pack_user_data(deseria_data,uid);        		//pack
-				//send_data_2_game_logic(send_qnode);							  				//send
+				//send_data_2_game_logic(send_qnode);							  	//send
+				printf("test start:\n");
+				send_data_test(send_qnode);
 				break;				
 			}
 
@@ -319,7 +358,7 @@ static int dispose_queue_event(net_logic* nt)
 		switch(service_type)
 		{
 			case SERVICE_TYPE_NET_IO:
-				dispose_netio_thread_que(que,qnode);
+				dispose_netio_thread_que(nt,qnode);
 				break;
 
 			case SERVICE_TYPE_GAME_LOGIC:
@@ -337,7 +376,7 @@ static int dispose_queue_event(net_logic* nt)
 
 static int dispose_threading_read_msg(net_logic* nt,service* sv)
 {
-	char buf[64];
+	char buf[64];;
 	int n = read(sv->sock_fd,buf,sizeof(buf));  //写到了这里接着写下去
 
 	if(n < 0)
@@ -404,6 +443,7 @@ static int net_logic_event(net_logic *nt)
 				if(eve->read)
 				{
 					int type = dispose_threading_read_msg(nt,sv);
+					printf("netlogic epoll work\n");
 					return type;
 				}
 				if(eve->write)
@@ -487,7 +527,7 @@ static int service_connect_establish(net_logic_start* start,net_logic* nl)
 }
 
 //configure* config,
-net_logic_start* net_logic_start_creat(double_que* que_pool)
+net_logic_start* net_logic_start_creat(queue* que_pool)
 {
 	net_logic_start* start = malloc(sizeof(net_logic_start));
 	if(start == NULL)

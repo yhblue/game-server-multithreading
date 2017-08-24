@@ -11,14 +11,6 @@
 
 #define SIZEOF_QNODE  32   //消息队列的节点32字节
 
-#define QUE_ID_NETIO_2_NETLOGIC          0
-#define QUE_ID_NETLOGIC_2_NETIO          1
-#define QUE_ID_NETLOGIC_2_GAME_FIRST     2
-#define QUE_ID_NETLOGIC_2_GAME_SECOND	 3
-#define QUE_ID_NETLOGIC_2_GAME_THIRD	 4
-#define QUE_ID_NETLOGIC_2_GAME_THIRD	 5
-
-
 typedef struct node 
 {  
 	char msg_type;

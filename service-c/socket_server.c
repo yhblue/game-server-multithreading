@@ -21,12 +21,12 @@
 #include <string.h>
 
 #define DATA_LEN_SIZE   			  1                 //1个字节存储长度信息
-#define MAX_EVENT 						  64                //epoll_wait一次最多返回64个事件
+#define MAX_EVENT 					 64                //epoll_wait一次最多返回64个事件
 
 #define SOCKET_READBUFF 		    128
 #define PIPE_HEAD_BUFF    			128   
-#define MAXPIPE_CONTENT_BUFF    128     
-#define MAX_BACK_LOG 						32
+#define MAXPIPE_CONTENT_BUFF    	128     
+#define MAX_BACK_LOG 				 32
 
 #define SOCKET_TYPE_INVALID          1		   
 #define SOCKET_TYPE_LISTEN_NOTADD    2		
@@ -37,7 +37,7 @@
 #define SOCKET_TYPE_OTHER            7		
 #define SOCKET_TYPE_PIPE_READ        8
 #define SOCKET_TYPE_PIPE_WRITE       9
-#define SOCKET_TYPE_NETLOGIC				10
+#define SOCKET_TYPE_NETLOGIC		10
 
 struct append_buffer
 {
@@ -342,7 +342,7 @@ static int send_data(struct socket_server* ss,struct socket *s,struct socket_mes
 					case EAGAIN:
 						return -1;
 					default:
-					fprintf(stderr, "send_data: write to %d (fd=%d) error.",s->id,s->fd);
+					fprintf(ERR_FILE, "send_data: write to %d (fd=%d) error.",s->id,s->fd);
 					close_fd(ss,s,result);
 					return -1;
 				}
@@ -475,6 +475,7 @@ static int send_notice2_netlogic_service(struct socket_server* ss)
 			default:
 			fprintf(stderr, "send_notice2_netlogic_service: write to netlogic_socket %d (fd=%d) error.",s->id,s->fd);
 			//close_fd(ss,s,result);
+			//
 			return -1;
 		}
 	}
@@ -526,8 +527,8 @@ static struct socket_server* socket_server_create(net_io_start* start)
 	}
 
 	ss->service_id = start->thread_id;
-	ss->io2netlogic_que = start->que_pool[ss->service_id].que_from;
-	ss->netlogic2io_que = start->que_pool[ss->service_id].que_to;
+	ss->io2netlogic_que = &start->que_pool[QUE_ID_NETIO_2_NETLOGIC];
+	ss->netlogic2io_que = &start->que_pool[QUE_ID_NETLOGIC_2_NETIO];
 	ss->address = start->address;
 	ss->port = start->port;
 	
