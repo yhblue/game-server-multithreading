@@ -13,7 +13,7 @@
 
 typedef struct node 
 {  
-	char msg_type;
+		char msg_type;
     char proto_type;         //for client data ,is serilia type,for inform is 
     int uid;  	        	//socket uid
     int len;	    		//for data is buffer length,for other is 0

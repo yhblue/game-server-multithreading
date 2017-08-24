@@ -78,6 +78,7 @@ typedef struct _net_logic
 {
 //	double_que* que_pool;  					//存储所有线程的queue,不需分配内存
 	queue* que_pool;
+	queue* current_que;                     //有数据到来的que
 	int epoll_fd;				
 	struct event* event_pool;
 	bool check_que;
@@ -114,23 +115,24 @@ static deserialize* unpack_user_data(unsigned char * data_pack,int len)
 	unsigned char proto_type = data_pack[0]; 	 //记录用的.proto文件中哪个message来序列化  
 	unsigned char* seria_data = data_pack + 1;   //data_pack 是网络IO线程中分配的内存，反序列化完之后free掉
 	deserialize* data = (deserialize*)malloc(sizeof(deserialize));
+	int data_len = len -1; //减去第一个字节包头
 	void * msg = NULL;
 	switch(proto_type)
 	{
 		case LOG_REQ:
-			msg = login_req__unpack(NULL,len,seria_data);//函数里面malloc了内存，返回给msg使用
+			msg = login_req__unpack(NULL,data_len,seria_data);//函数里面malloc了内存，返回给msg使用
 			break;		
 
 		case HERO_MSG_REQ:
-			msg = hero_msg__unpack(NULL,len,seria_data);
+			msg = hero_msg__unpack(NULL,data_len,seria_data);
 			break;			
 
 		case CONNECT_REQ:
-			msg = connect_req__unpack(NULL,len,seria_data);
+			msg = connect_req__unpack(NULL,data_len,seria_data);
 			break;				
 
 		case HEART_REQ:
-			msg = heart_beat__unpack(NULL,len,seria_data);
+			msg = heart_beat__unpack(NULL,data_len,seria_data);
 			break;			
 	}	
 	data->proto_type = proto_type;
@@ -236,16 +238,20 @@ static q_node* pack_user_data(deserialize* desseria_data,int uid_pack)
 }
 
 //测试 client -> netio -> net_logic打印反序列化之后的数据 
-void send_data_test(q_node* qnode)
-{
+void send_data_test(queue* que,q_node* qnode)
+{	
 	if(qnode == NULL)
 	{
 		fprintf(ERR_FILE,"send_data_test:qnode is null\n");
 		return NULL;		
 	}
+	printf("send_data_test command\n");
 	char msg_type = qnode->msg_type;
+	printf("msg_type = %c",msg_type);
 	char proto_type = qnode->proto_type;
+	printf("proto_type = %c",proto_type);
 	unsigned char* buffer = qnode->buffer;
+
 	switch(proto_type)
 	{
 		case LOG_REQ:
@@ -314,13 +320,13 @@ static imform2_game* pack_inform_data(unsigned char len_pack,int uid_pack,char t
 	return NULL;
 }
 
-static void dispose_netio_thread_que(net_logic* nt,q_node* qnode)
+static void dispose_netio_thread_que(queue* que,q_node* qnode)
 {
 	char type = qnode->msg_type;  		// 'D' 'S' 'C'
 	int uid = qnode->uid;
 	unsigned char* data = qnode->buffer;
 	int content_len = qnode->len; 		//内容的长度(即客户端原始发送上来的数据的长度)	
-	queue* que = nt->que_pool[QUE_ID_NETIO_2_NETLOGIC];
+
 	switch(type)
 	{
 		case TYPE_DATA:     			// 'D' data--upack--pack--send
@@ -329,7 +335,7 @@ static void dispose_netio_thread_que(net_logic* nt,q_node* qnode)
 				q_node* send_qnode = pack_user_data(deseria_data,uid);        		//pack
 				//send_data_2_game_logic(send_qnode);							  	//send
 				printf("test start:\n");
-				send_data_test(send_qnode);
+				send_data_test(que,send_qnode);
 				break;				
 			}
 
@@ -347,7 +353,7 @@ static void dispose_netio_thread_que(net_logic* nt,q_node* qnode)
 static int dispose_queue_event(net_logic* nt)
 {
 	int service_type = nt->current_serice->type;
-	//queue* que = nt->current_serice->que_2_netlog;
+	queue* que = nt->current_que;
 	q_node* qnode = queue_pop(que);
 	if(qnode == NULL) //队列无数据
 	{
@@ -358,7 +364,10 @@ static int dispose_queue_event(net_logic* nt)
 		switch(service_type)
 		{
 			case SERVICE_TYPE_NET_IO:
-				dispose_netio_thread_que(nt,qnode);
+				printf("--------%c-----------\n",qnode->msg_type);
+				printf("--------%d-----------\n",qnode->uid);
+				printf("--------%d-----------\n",qnode->len);				
+				dispose_netio_thread_que(que,qnode);
 				break;
 
 			case SERVICE_TYPE_GAME_LOGIC:
@@ -376,9 +385,10 @@ static int dispose_queue_event(net_logic* nt)
 
 static int dispose_threading_read_msg(net_logic* nt,service* sv)
 {
-	char buf[64];;
+	char buf[64];
 	int n = read(sv->sock_fd,buf,sizeof(buf));  //写到了这里接着写下去
-
+	buf[n] = '\0';
+	printf("%s\n",buf);
 	if(n < 0)
 	{
 		switch(errno)
@@ -407,7 +417,9 @@ static int net_logic_event(net_logic *nt)
 	{
 		if(nt->check_que == true) 
 		{
+			printf("handle que event start!\n");
 			int ret = dispose_queue_event(nt);
+			printf("handle que event! end\n");
 			if(ret == -1) //queue is null
 			{
 				nt->check_que = false;
@@ -436,7 +448,19 @@ static int net_logic_event(net_logic *nt)
 		switch(sv->type)			
 		{
 			case SERVICE_TYPE_NET_IO:  	  	//为了唤醒epoll，去处理消息队列的信息
+				nt->current_que = &nt->que_pool[QUE_ID_NETIO_2_NETLOGIC];	
+				nt->current_serice = sv;	
+				nt->check_que = true;
+				if(eve->read)
+				{
+					int type = dispose_threading_read_msg(nt,sv);
+					printf("netlogic epoll work\n");
+					return type;
+				}
+				break;
+
 			case SERVICE_TYPE_GAME_LOGIC: 	//游戏逻辑处理进程，去处理广播信息		
+				nt->current_que = &nt->que_pool[QUE_ID_GAMELOGIC_2_NETLOGIC];
 				nt->check_que = true;
 				nt->current_serice = sv;
 
@@ -524,6 +548,7 @@ static int service_connect_establish(net_logic_start* start,net_logic* nl)
        fprintf(ERR_FILE,"service_connect_establish:connect_netio_service failed\n");
        return -1;			
 	}
+	return 0;
 }
 
 //configure* config,
@@ -561,20 +586,21 @@ void* net_logic_service_loop(void* arg)
 
 	for( ; ; )
 	{
-		// type = net_logic_event(nt);
-		// switch(type)
-		// {
-		// 	case EVENT_TYPE_QUE_NULL:
-		// 		break;
+		type = net_logic_event(nt);
+		switch(type)
+		{
+			case EVENT_TYPE_QUE_NULL:
+				printf("queue is null\n");
+				break;
 
-		// 	case EVENT_THREAD_CONNECT_ERR:
-		// 		break;
+			case EVENT_THREAD_CONNECT_ERR:
+				break;
 
-		// 	case EVENT_THREAD_DISCONNECT:
-		// 		break;
-		// }
-		printf("net_logic_service_loop running!\n");
-		sleep(10);
+			case EVENT_THREAD_DISCONNECT:
+				break;
+		}
+		// printf("net_logic_service_loop running!\n");
+		// sleep(10);
 	}
 	return NULL;
 }

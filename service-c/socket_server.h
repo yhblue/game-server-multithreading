@@ -22,7 +22,7 @@ struct socket_message {
 
 typedef struct _net_io_start
 {
-	double_que* que_pool;
+	queue* que_pool;
 	int thread_id;
 	int port;
 	char* address;
@@ -36,7 +36,7 @@ typedef struct _net_io_start
 // void read_test(struct socket_server* ss,int id,const char* data,int size,struct socket_message *result);
 // void* socket_server_thread_loop(void* arg);
 // net_io_start* net_io_start_creat(double_que* que_pool,int thread_id,char*address,int port);
-net_io_start* net_io_start_creat(double_que* que_pool,int thread_id,char*address,int port);
+net_io_start* net_io_start_creat(queue* que_pool,int thread_id,char*address,int port);
 void* network_io_service_loop(void* arg);
 
 #endif

@@ -733,7 +733,7 @@ static void send_client_data2net_logic(struct socket_server* ss,q_node* qnode)
 }
 
 //这里应该不要传递那么多参数，直接传递读配置文件后返回的指针吧
-net_io_start* net_io_start_creat(double_que* que_pool,int thread_id,char*address,int port)
+net_io_start* net_io_start_creat(queue* que_pool,int thread_id,char*address,int port)
 {
 	net_io_start* start = (net_io_start*)malloc(sizeof(net_io_start));
 	start->que_pool = que_pool;
