@@ -23,7 +23,7 @@
 #include <string.h>
 
 #define MAX_SERVICE      			8
-#define NET_LOGIC_MAX_EVENT  		10
+#define NET_LOGIC_MAX_EVENT  	   10
 #define GAME_THREADING_NUM      	4
 
 #define EVENT_TYPE_QUE_NULL  	    1
@@ -44,8 +44,12 @@
 #define SERVICE_ID_GAME_THIRD       6
 #define SERVICE_ID_GAME_FOURTH      7
 
-#define TO_OTHER_THREAD_QUE     	0
-#define FROM_OTHER_THREAD_QUE    	1
+#define GAME_LOGIC_SERVICE_NUM      4
+#define GAME_LOGIC_SERVER_FIRST     0
+#define GAME_LOGIC_SERVER_SECOND    1
+#define GAME_LOGIC_SERVER_THIRD     2
+#define GAME_LOGIC_SERVER_FOURTH    3
+
 
 //#pragma pack(1)
 typedef struct _pack_head
@@ -59,7 +63,6 @@ typedef struct _service
 	int thread_id;
 	int sock_fd;
 	int type;
-	//queue* que_2_netlog;
 }service;
 
 typedef struct _send_game_pack
@@ -73,28 +76,32 @@ typedef struct _imform2_game
 	int uid;     	  //socket的id(或者说是用户的id)
 }imform2_game;
 
+typedef struct _router
+{
+	unsigned char sock_id2game_logic[MAX_SOCKET];			//用户socket id 到 游戏逻辑服务的id 0-3
+	int online_player[GAME_LOGIC_SERVICE_NUM];  			//记录每个游戏服务的人数 
+	queue* que_2_gamelogic[GAME_LOGIC_SERVICE_NUM]; 		//net logic 服务到 game logic服务各自的消息队列
+}router;
 
 typedef struct _net_logic
-{
-//	double_que* que_pool;  					//存储所有线程的queue,不需分配内存
-	queue* que_pool;
+{			
+	queue* que_pool;						//存储所有线程的queue,不需分配内存
 	queue* current_que;                     //有数据到来的que
 	int epoll_fd;				
 	struct event* event_pool;
 	bool check_que;
 	int event_index;
 	int event_n;	
-	service* current_serice;            	 //epoll return 
-	service* service_pool; 			    	 //线程的信息的存储结构
-	int* thread_socket_fd;
-	unsigned char* sock_id_2_threadsock_fd;  //下标是socket id，值是thread_socket_fd[] 中的下标	
+	service* current_serice;            	//epoll return 
+	service* service_pool; 			    	//线程的信息的存储结构,用于epoll
 	int thread_id;
+	router route;   						//路由表
 }net_logic;
 
 typedef struct _deserialize
 {
-	char proto_type; //存放protobuf用来序列化数据的类型
-	char* buffer;    //存放反序列化之后的数据
+	char proto_type; 	//存放protobuf用来序列化数据的类型
+	char* buffer;    	//存放反序列化之后的数据
 }deserialize;
 
 
@@ -107,6 +114,21 @@ queue* message_que_creat()
 		return NULL;		
 	}
 	return que_pool;
+}
+
+int route_get_gamelogic_id(net_logic* nl)
+{
+	int gamelogic01_player = nt->route.online_player[0];
+	int gamelogic02_player = nt->route.online_player[1];
+	int gamelogic03_player = nt->route.online_player[2];
+	int gamelogic04_player = nt->route.online_player[3];
+
+	int id1 = (gamelogic01_player >= gamelogic02_player)? GAME_LOGIC_SERVER_FIRST:GAME_LOGIC_SERVER_SECOND;
+	int id2 = (gamelogic03_player >= gamelogic04_player)? GAME_LOGIC_SERVER_THIRD:GAME_LOGIC_SERVER_FOURTH;
+
+	int ret = (nt->route.online_player[id1] >= nt->route.online_player[id2])? id1 : id2;
+
+	return ret;
 }
 
 //这个函数看看能不能改一下，这个函数必须依赖网络IO线程按照指定格式读，这样效率低
@@ -182,31 +204,6 @@ static net_logic* net_logic_creat(net_logic_start* start)
 		sv->type = 0;
 	}
 
-	size = sizeof(unsigned char) * MAX_SOCKET;
-	nt->sock_id_2_threadsock_fd = (unsigned char*)malloc(size);
-	if(nt->sock_id_2_threadsock_fd == NULL)
-	{
-		fprintf(ERR_FILE,"net_logic_creat:sock_id_2_threadsock_fd malloc failed\n");
-		epoll_release(efd);
-		free(nt->event_pool);
-		free(nt->service_pool);
-		return NULL;			
-	}
-	memset(nt->sock_id_2_threadsock_fd,0,size);
-
-	size = sizeof(int) * MAX_SERVICE;
-	nt->thread_socket_fd = (int*)malloc(size);
-	if(nt->thread_socket_fd == NULL)
-	{
-		fprintf(ERR_FILE,"net_logic_creat:game_socket_fd malloc failed\n");
-		epoll_release(efd);
-		free(nt->event_pool);
-		free(nt->service_pool);
-		free(nt->sock_id_2_threadsock_fd);
-		return NULL;			
-	}
-	memset(nt->sock_id_2_threadsock_fd,0,size);
-
 	nt->check_que = false;
 	nt->event_index = 0;
 	nt->event_n = 0;
@@ -214,6 +211,19 @@ static net_logic* net_logic_creat(net_logic_start* start)
 	nt->thread_id = start->thread_id;
 	nt->que_pool = start->que_pool;
 
+	nt->route.que_2_gamelogic[GAME_LOGIC_SERVER_FIRST]  = &nt->que_pool[QUE_ID_NETLOGIC_2_GAME_FIRST];
+	nt->route.que_2_gamelogic[GAME_LOGIC_SERVER_SECOND] = &nt->que_pool[QUE_ID_NETLOGIC_2_GAME_SECOND];
+	nt->route.que_2_gamelogic[GAME_LOGIC_SERVER_THIRD]  = &nt->que_pool[QUE_ID_NETLOGIC_2_GAME_THIRD];
+	nt->route.que_2_gamelogic[GAME_LOGIC_SERVER_FOURTH] = &nt->que_pool[QUE_ID_NETLOGIC_2_GAME_FOURTH];
+
+	for(int i=0; i<MAX_SOCKET; i++)
+	{
+		nt->sock_id2game_logic[i] = 0;
+	}
+	for(int i=0; i<GAME_LOGIC_SERVICE_NUM; i++)
+	{
+		online_player[i] = 0;
+	}
 	return nt;
 }
 
@@ -612,9 +622,8 @@ void* net_logic_service_loop(void* arg)
 
 
 
+
 /*
-
-
 static int apply_threading_id()
 {
 	static int id = -1;
@@ -622,22 +631,49 @@ static int apply_threading_id()
 	return id;	
 }
 
-// static process* apply_process(net_logic* nt,int socket_fd,int p_id,bool add_epoll)
-// {
-// 	service* sv = &nt->service_pool[p_id % GAME_THREADING_NUM];
-// 	if(sv == NULL)
-// 	{
-// 		return NULL;
-// 	}
-// 	if(add_epoll)
-// 	{
-// 		if(epoll_add(nt->epoll_fd,socket_fd,sv) == -1)
-// 		{
-// 			return NULL;
-// 		}
-// 	}	
-// 	sv->p_id = p_id;
-// 	sv->sock_fd = socket_fd;
-// }
+static process* apply_process(net_logic* nt,int socket_fd,int p_id,bool add_epoll)
+{
+	service* sv = &nt->service_pool[p_id % GAME_THREADING_NUM];
+	if(sv == NULL)
+	{
+		return NULL;
+	}
+	if(add_epoll)
+	{
+		if(epoll_add(nt->epoll_fd,socket_fd,sv) == -1)
+		{
+			return NULL;
+		}
+	}	
+	sv->p_id = p_id;
+	sv->sock_fd = socket_fd;
+}
+
+
+	size = sizeof(unsigned char) * MAX_SOCKET;
+	nt->sock_id_2_threadsock_fd = (unsigned char*)malloc(size);
+	if(nt->sock_id_2_threadsock_fd == NULL)
+	{
+		fprintf(ERR_FILE,"net_logic_creat:sock_id_2_threadsock_fd malloc failed\n");
+		epoll_release(efd);
+		free(nt->event_pool);
+		free(nt->service_pool);
+		return NULL;			
+	}
+	memset(nt->sock_id_2_threadsock_fd,0,size);
+
+	size = sizeof(int) * MAX_SERVICE;
+	nt->thread_socket_fd = (int*)malloc(size);
+	if(nt->thread_socket_fd == NULL)
+	{
+		fprintf(ERR_FILE,"net_logic_creat:game_socket_fd malloc failed\n");
+		epoll_release(efd);
+		free(nt->event_pool);
+		free(nt->service_pool);
+		free(nt->sock_id_2_threadsock_fd);
+		return NULL;			
+	}
+	memset(nt->sock_id_2_threadsock_fd,0,size);
+
 
  */
