@@ -22,7 +22,7 @@
 typedef struct _net_logic_start
 {
 	queue* que_pool;
-	int thread_id;	
+	int service_id;	
 	char* netio_addr;
 	int netio_port;
 }net_logic_start;

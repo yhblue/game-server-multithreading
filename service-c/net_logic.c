@@ -31,9 +31,11 @@
 #define EVENT_THREAD_DISCONNECT     3
 
 #define SERVICE_TYPE_NET_IO       	1
-#define SERVICE_TYPE_GAME_LOGIC   	2
-#define SERVICE_TYPE_LOG          	3
-#define SERVICE_TYPE_CHAT         	4
+#define SERVICE_TYPE_NETLOGIC		2
+#define SERVICE_TYPE_GAME_LOGIC   	3
+#define SERVICE_TYPE_LOG          	4
+#define SERVICE_TYPE_CHAT         	5
+
 
 #define SERVICE_ID_NETWORK_IO       0
 #define SERVICE_ID_NET_ROUTE        1
@@ -60,7 +62,7 @@ typedef struct _pack_head
 
 typedef struct _service
 {
-	int thread_id;
+	int service_id;
 	int sock_fd;
 	int type;
 }service;
@@ -81,6 +83,7 @@ typedef struct _router
 	unsigned char sock_id2game_logic[MAX_SOCKET];			//用户socket id 到 游戏逻辑服务的id 0-3
 	int online_player[GAME_LOGIC_SERVICE_NUM];  			//记录每个游戏服务的人数 
 	queue* que_2_gamelogic[GAME_LOGIC_SERVICE_NUM]; 		//net logic 服务到 game logic服务各自的消息队列
+	int gamelog_socket[GAME_THREADING_NUM];                 //与game_logic 服务通信的socket
 }router;
 
 typedef struct _net_logic
@@ -94,7 +97,7 @@ typedef struct _net_logic
 	int event_n;	
 	service* current_serice;            	//epoll return 
 	service* service_pool; 			    	//线程的信息的存储结构,用于epoll
-	int thread_id;
+	int service_id;
 	router route;   						//路由表
 }net_logic;
 
@@ -204,7 +207,7 @@ static net_logic* net_logic_creat(net_logic_start* start)
 	for(int i=0; i<MAX_SERVICE; i++)
 	{
 		service* sv = &nt->service_pool[i];
-		sv->thread_id = 0;
+		sv->service_id = 0;
 		sv->sock_fd = 0;
 		sv->type = 0;
 	}
@@ -213,7 +216,7 @@ static net_logic* net_logic_creat(net_logic_start* start)
 	nt->event_index = 0;
 	nt->event_n = 0;
 
-	nt->thread_id = start->thread_id;
+	nt->service_id = start->service_id;
 	nt->que_pool = start->que_pool;
 
 	nt->route.que_2_gamelogic[GAME_LOGIC_SERVER_FIRST]  = &nt->que_pool[QUE_ID_NETLOGIC_2_GAME_FIRST];
@@ -525,13 +528,13 @@ static int connect_netio_service(net_logic* nl,char* netio_addr,int netio_port)
 	    {
 	        fprintf(ERR_FILE,"connect_netio_service:netlogic_thread disconnect\n");
 	        //return -1;
-	        sleep(5);
+	        sleep(1);
 	    }
 	    else
 	    {
 		    //connect sussess
 			service* sv = &nl->service_pool[SERVICE_ID_NETWORK_IO];
-		    sv->thread_id = SERVICE_ID_NETWORK_IO;
+		    sv->service_id = SERVICE_ID_NETWORK_IO;
 		    sv->sock_fd = sockfd;
 		    sv->type = SERVICE_TYPE_NET_IO;
 		    
@@ -550,6 +553,75 @@ static int connect_netio_service(net_logic* nl,char* netio_addr,int netio_port)
 }
 
 
+static int accept_gamelog_service_connect(net_logic* nl)
+{	
+ 	struct sockaddr_in addr; 	   //tcpip地址结构
+	socklen_t addr_len = sizeof(addr);
+	int listen_fd = nl->listen_fd;
+	int socket = 0;
+	int accept_num = 0;
+	for( ; ; )
+	{
+		socket = accept(listen_fd,(struct sockaddr *)&addr, (socklen_t *)&addr_len);
+		if (socket == -1)
+		{
+			fprintf(ERR_FILE,"wait_netlogic_thread_connect: socket connect failed\n");
+			return -1;
+		}   
+		else
+		{
+			int port = ntohs(addr.sin_port);  //客户端的端口
+			printf("dispatch accept\n");
+			switch(port)
+			{
+				case GAME_LOGIC_SERVICE_FIRST:
+					nl->route.gamelog_socket[GAME_LOGIC_SERVER_FIRST] = socket;
+					accept_num++;
+					break;
+
+				case GAME_LOGIC_SERVICE_SECOND:
+					nl->route.gamelog_socket[GAME_LOGIC_SERVER_SECOND] = socket;
+					accept_num++;				
+					break;
+
+				case GAME_LOGIC_SERVICE_THIRD:
+					nl->route.gamelog_socket[GAME_LOGIC_SERVER_THIRD] = socket;
+					accept_num++;
+					break;
+
+				case GAME_LOGIC_SERVICE_FOURTH:
+					nl->route.gamelog_socket[GAME_LOGIC_SERVER_FOURTH] = socket;
+					accept_num++;
+					break;
+
+				default:
+					printf("port error\n");
+					close(socket); 
+					break;					
+			}	
+			if(accept_num == GAME_LOGIC_SERVICE_NUM)
+			{
+				for(int i=0; i<GAME_LOGIC_SERVICE_NUM; i++)
+				{
+					service* sv = &nt->service_pool[SERVICE_ID_GAME_FIRST+i];
+					sv->service_id = SERVICE_ID_GAME_FIRST + i;
+					sv->sock_fd = nl->route.gamelog_socket[i];
+					sv->type = SERVICE_TYPE_GAME_LOGIC;
+					if(epoll_add(nl->epoll_fd,sockfd,sv) == -1)
+			    	{
+			       		fprintf(ERR_FILE,"accept_gamelog_service_connect:epoll_add failed\n");
+			       		return -1;    	
+			    	} 
+				}	
+				printf("connect all game_logic service\n");
+				return 0;
+			}//代码就写到这里，转过去学习一下自旋锁的使用和测试一下哪个会效率更高一点
+		}		
+	}
+	return -1;
+}
+
+int 
 
 static int service_connect_establish(net_logic_start* start,net_logic* nl)
 {
@@ -558,6 +630,11 @@ static int service_connect_establish(net_logic_start* start,net_logic* nl)
 	if(connect_netio_service(nl,netio_addr,netio_port) == -1)
 	{
        fprintf(ERR_FILE,"service_connect_establish:connect_netio_service failed\n");
+       return -1;			
+	}
+	if(accept_gamelog_service_connect(nl) == -1)
+	{
+       fprintf(ERR_FILE,"service_connect_establish:connect game_logic service failed\n");
        return -1;			
 	}
 	return 0;
@@ -573,7 +650,7 @@ net_logic_start* net_logic_start_creat(queue* que_pool)
        return NULL;			
 	}
 	start->que_pool = que_pool;
-	start->thread_id = 1;
+	start->service_id = 1;
 	start->netio_addr = "127.0.0.1";
 	start->netio_port = 8000;
 
