@@ -118,15 +118,15 @@ queue* message_que_creat()
 
 uint8_t route_get_gamelogic_id(net_logic* nl)
 {
-	int gamelogic01_player = nt->route.online_player[GAME_LOGIC_SERVER_FIRST];
-	int gamelogic02_player = nt->route.online_player[GAME_LOGIC_SERVER_SECOND];
-	int gamelogic03_player = nt->route.online_player[GAME_LOGIC_SERVER_THIRD];
-	int gamelogic04_player = nt->route.online_player[GAME_LOGIC_SERVER_FOURTH];
+	int gamelogic01_player = nl->route.online_player[GAME_LOGIC_SERVER_FIRST];
+	int gamelogic02_player = nl->route.online_player[GAME_LOGIC_SERVER_SECOND];
+	int gamelogic03_player = nl->route.online_player[GAME_LOGIC_SERVER_THIRD];
+	int gamelogic04_player = nl->route.online_player[GAME_LOGIC_SERVER_FOURTH];
 
 	uint8_t id1 = (gamelogic01_player >= gamelogic02_player)? GAME_LOGIC_SERVER_FIRST:GAME_LOGIC_SERVER_SECOND;
 	uint8_t id2 = (gamelogic03_player >= gamelogic04_player)? GAME_LOGIC_SERVER_THIRD:GAME_LOGIC_SERVER_FOURTH;
 
-	uint8_t ret = (nt->route.online_player[id1] >= nt->route.online_player[id2])? id1 : id2;
+	uint8_t ret = (nl->route.online_player[id1] >= nl->route.online_player[id2])? id1 : id2;
 
 	return ret;
 }
@@ -223,11 +223,11 @@ static net_logic* net_logic_creat(net_logic_start* start)
 
 	for(int i=0; i<MAX_SOCKET; i++)
 	{
-		nt->sock_id2game_logic[i] = 0;
+		nt->route.sock_id2game_logic[i] = 0;
 	}
 	for(int i=0; i<GAME_LOGIC_SERVICE_NUM; i++)
 	{
-		online_player[i] = 0;
+		nt->route.online_player[i] = 0;
 	}
 	return nt;
 }
