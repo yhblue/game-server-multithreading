@@ -1,6 +1,6 @@
 .SUFFIXES:.c .o
 CC=gcc
-SRCS=socket_server.c socket_epoll.c main.c net_logic.c lock_queue.c message.pb-c.c
+SRCS=socket_server.c socket_epoll.c main.c net_logic.c lock_queue.c game_logic.c message.pb-c.c 
 OBJS=$(SRCS:.c=.o)
 EXE=socket
 

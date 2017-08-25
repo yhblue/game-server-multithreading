@@ -51,7 +51,7 @@
 #define GAME_LOGIC_SERVER_FOURTH    3
 
 
-//#pragma pack(1)
+
 typedef struct _pack_head
 {
 	char msg_type;    //记录哪种消息类型，'D' 数据 'S' 新用户 'C' 客户端关闭
@@ -87,7 +87,7 @@ typedef struct _net_logic
 {			
 	queue* que_pool;						//存储所有线程的queue,不需分配内存
 	queue* current_que;                     //有数据到来的que
-	int epoll_fd;				
+	int epoll_fd;							
 	struct event* event_pool;
 	bool check_que;
 	int event_index;
@@ -100,7 +100,7 @@ typedef struct _net_logic
 
 typedef struct _deserialize
 {
-	char proto_type; 	//存放protobuf用来序列化数据的类型
+	char proto_type; 	//存放 protobuf 用来序列化数据的类型
 	char* buffer;    	//存放反序列化之后的数据
 }deserialize;
 
@@ -116,19 +116,24 @@ queue* message_que_creat()
 	return que_pool;
 }
 
-int route_get_gamelogic_id(net_logic* nl)
+uint8_t route_get_gamelogic_id(net_logic* nl)
 {
-	int gamelogic01_player = nt->route.online_player[0];
-	int gamelogic02_player = nt->route.online_player[1];
-	int gamelogic03_player = nt->route.online_player[2];
-	int gamelogic04_player = nt->route.online_player[3];
+	int gamelogic01_player = nt->route.online_player[GAME_LOGIC_SERVER_FIRST];
+	int gamelogic02_player = nt->route.online_player[GAME_LOGIC_SERVER_SECOND];
+	int gamelogic03_player = nt->route.online_player[GAME_LOGIC_SERVER_THIRD];
+	int gamelogic04_player = nt->route.online_player[GAME_LOGIC_SERVER_FOURTH];
 
-	int id1 = (gamelogic01_player >= gamelogic02_player)? GAME_LOGIC_SERVER_FIRST:GAME_LOGIC_SERVER_SECOND;
-	int id2 = (gamelogic03_player >= gamelogic04_player)? GAME_LOGIC_SERVER_THIRD:GAME_LOGIC_SERVER_FOURTH;
+	uint8_t id1 = (gamelogic01_player >= gamelogic02_player)? GAME_LOGIC_SERVER_FIRST:GAME_LOGIC_SERVER_SECOND;
+	uint8_t id2 = (gamelogic03_player >= gamelogic04_player)? GAME_LOGIC_SERVER_THIRD:GAME_LOGIC_SERVER_FOURTH;
 
-	int ret = (nt->route.online_player[id1] >= nt->route.online_player[id2])? id1 : id2;
+	uint8_t ret = (nt->route.online_player[id1] >= nt->route.online_player[id2])? id1 : id2;
 
 	return ret;
+}
+
+void route_set_sock_id2game_logic(net_logic* nl,int socket_id,uint8_t game_id)
+{
+	nl->route.sock_id2game_logic[socket_id] = game_id;
 }
 
 //这个函数看看能不能改一下，这个函数必须依赖网络IO线程按照指定格式读，这样效率低
@@ -395,7 +400,7 @@ static int dispose_threading_read_msg(net_logic* nt,service* sv)
 	char buf[64];
 	int n = read(sv->sock_fd,buf,sizeof(buf));  //写到了这里接着写下去
 	buf[n] = '\0';
-	printf("%s\n",buf);
+	//printf("%s\n",buf);
 	if(n < 0)
 	{
 		switch(errno)
