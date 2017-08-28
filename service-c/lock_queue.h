@@ -13,7 +13,7 @@
 
 typedef struct node 
 {  
-		char msg_type;
+	char msg_type;
     char proto_type;         //for client data ,is serilia type,for inform is 
     int uid;  	        	//socket uid
     int len;	    		//for data is buffer length,for other is 0
@@ -25,7 +25,8 @@ typedef struct _queue
 {  
     q_node* head; //指向对头节点  
     q_node* tail; //指向队尾节点  
-    pthread_mutex_t mutex_lock;
+//    pthread_mutex_t mutex_lock;
+    spin_lock lock;
 }queue;
 
 queue* queue_creat();

@@ -615,7 +615,7 @@ static int accept_gamelog_service_connect(net_logic* nl)
 				}	
 				printf("connect all game_logic service\n");
 				return 0;
-			}//代码就写到这里，转过去学习一下自旋锁的使用和测试一下哪个会效率更高一点
+			}
 		}		
 	}
 	return -1;

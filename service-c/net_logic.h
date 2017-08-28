@@ -13,6 +13,15 @@
 #define QUE_ID_NETLOGIC_2_GAME_FOURTH	 5
 #define QUE_ID_GAMELOGIC_2_NETLOGIC	     6  
 
+#define SERVICE_ID_NETWORK_IO       0
+#define SERVICE_ID_NET_ROUTE        1
+#define SERVICE_ID_LOG              2
+#define SERVICE_ID_DB               3
+#define SERVICE_ID_GAME_FIRST       4
+#define SERVICE_ID_GAME_SECOND      5
+#define SERVICE_ID_GAME_THIRD       6
+#define SERVICE_ID_GAME_FOURTH      7
+
 // typedef struct _double_que
 // {
 // 	queue* que_to;

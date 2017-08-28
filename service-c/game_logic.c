@@ -15,8 +15,8 @@
 //http://www.cnblogs.com/purpleraintear/p/6160733.html
 
 //一个游戏逻辑线程最大支持20*10个玩家在线
-#define MAX_MAP    				20
-#define MAX_PLAYER_EACH_MAP  	10
+#define MAX_MAP    						20
+#define MAX_PLAYER_EACH_MAP  			10
 
 #define GAME_LOG_EVENT_QUE_NULL          1
 #define GAME_LOG_EVENT_SOCKET_CLOSE      2
@@ -78,6 +78,7 @@ game_router* game_route_table_creat()
 	return route;
 }
 
+
 game_logic_start* game_logic_start_creat(queue* que_pool,game_router* route,int service_id,char* netlog_addr,int netlog_port,int serv_port)
 {
 	game_logic_start* start = (game_logic_start*)malloc(sizeof(game_logic_start));
@@ -133,7 +134,7 @@ static int dispose_queue_event(game_logic* gl)
 
 static int dispose_socket_event(game_logic* gl)
 {
-	char buf[64];
+	char buf[128];
 	int n = read(gl->sock_2_net_logic,buf,sizeof(buf));
 	if(n < 0)
 	{
@@ -243,15 +244,16 @@ void* game_logic_service_loop(void* arg)
 	int type = 0;
 	for( ; ; )
 	{
-		type = game_logic_event(gl)
+		type = game_logic_event(gl);
 		switch(type):
 		{
 			case GAME_LOG_EVENT_QUE_NULL:
 				printf("game_logic:port = %d,queue null\n",gl->serv_port);
+				sleep(5);
 				break;
 
 			case GAME_LOG_EVENT_SOCKET_CLOSE:
-				printf("game_logic:port = %d,socket close\n",gl->serv_port);
+				//printf("game_logic:port = %d,socket close\n",gl->serv_port);
 				break;
 		}
 	}

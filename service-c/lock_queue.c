@@ -15,7 +15,7 @@ queue* queue_creat()
     q->head = NULL;  
     q->tail = NULL;  
 
-    pthread_mutex_init(&(q->mutex_lock),NULL); 
+    SPIN_INIT(&(q->lock));
     return q;  
 }  
 
@@ -44,8 +44,8 @@ int queue_push(queue* q,q_node* qnode)
         fprintf(ERR_FILE,"queue_push:qnode is null\n"); 
         return -1;
     }
-    
-    pthread_mutex_lock(&(q->mutex_lock)); 
+
+    SPIN_LOCK(&(q->lock));
     if (q->head == NULL) 
     {  
         q->head = qnode;  
@@ -59,15 +59,14 @@ int queue_push(queue* q,q_node* qnode)
         q->tail->next = qnode;  
         q->tail = qnode;  
     }  
-    pthread_mutex_unlock(&(q->mutex_lock));     
+    SPIN_UNLOCK(&(q->lock));    
+
     return 0;  
 }  
   
 static bool queue_is_empty(queue* q)
 {  
-//    pthread_mutex_lock(&(q->mutex_lock));
     bool ret = (q->head == NULL);
-//    pthread_mutex_unlock(&(q->mutex_lock));
     return ret;  
 }  
   
@@ -76,14 +75,14 @@ void* queue_pop(queue* q)
 	if(queue_is_empty(q) == true)
 		return NULL;
 
-	pthread_mutex_lock(&(q->mutex_lock));
+    SPIN_LOCK(&(q->lock));
 	q_node* qtmp = q->head;
 	if(q->head == q->tail)
 	{
 		q->tail = NULL;
 	}
 	q->head = q->head->next; 
-	pthread_mutex_unlock(&(q->mutex_lock));
+    SPIN_UNLOCK(&(q->lock)); 
 	
 	return qtmp; //调用的一方需要释放掉qtmp和qtmp->buffer的内存
 }
@@ -108,38 +107,3 @@ void queue_destory(queue* q)
 	free(q);
 	q = NULL;
 }
-
-
-
-
-
-// void queue_push(queue* q,char type,void* buf,int len)
-// {  
-//     q_node* qnode = (q_node*)malloc(sizeof(q_node));  
-//     if (qnode == NULL)
-//     {  
-//         fprintf(ERR_FILE,"queue_push:malloc err\n"); 
-//         return;  
-//     }  
-
-//     qnode->type = type;
-//     qnode->len = len;
-//     qnode->buffer = buf;
-//     qnode->next = NULL;  
-
-//      pthread_mutex_lock(&(q->mutex_lock)); 
-//     if (q->head == NULL) 
-//     {  
-//         q->head = qnode;  
-//     }  
-//     if (q->tail == NULL) 
-//     {  
-//         q->tail = qnode;  
-//     }  
-//     else 
-//     {  
-//         q->tail->next = qnode;  
-//         q->tail = qnode;  
-//     }  
-//     pthread_mutex_unlock(&(q->mutex_lock));
-// }
