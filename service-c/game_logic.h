@@ -26,7 +26,9 @@ typedef struct _game_logic_start
 	game_router* route;
 }game_logic_start;
 
+game_logic_start* game_logic_start_creat(queue* que_pool,game_router* route,int service_id,char* netlog_addr,int netlog_port,int serv_port);
 
+void* game_logic_service_loop(void* arg);
 
 #endif
 

@@ -3,7 +3,6 @@
 #include "lock_queue.h"
 #include "err.h"
 #include "socket_epoll.h"
-#include "message.pb-c.h"
 #include "configure.h"
 #include "proto.h"
 #include "socket_server.h"
@@ -99,6 +98,9 @@ typedef struct _net_logic
 	service* service_pool; 			    	//线程的信息的存储结构,用于epoll
 	int service_id;
 	router route;   						//路由表
+	int listen_fd;
+	char* serv_addr;
+	int serv_port;
 }net_logic;
 
 typedef struct _deserialize
@@ -232,6 +234,10 @@ static net_logic* net_logic_creat(net_logic_start* start)
 	{
 		nt->route.online_player[i] = 0;
 	}
+
+	nt->serv_port = start->netlog_port;
+	nt->serv_addr = start->netlog_addr;
+
 	return nt;
 }
 
@@ -255,13 +261,13 @@ static q_node* pack_user_data(deserialize* desseria_data,int uid_pack)
 	return qnode;
 }
 
-//测试 client -> netio -> net_logic打印反序列化之后的数据 
-void send_data_test(queue* que,q_node* qnode)
+//测试 client -> netio -> net_logic 打印反序列化之后的数据 
+void send_data_test(net_logic* nl,queue* que,q_node* qnode)
 {	
 	if(qnode == NULL)
 	{
 		fprintf(ERR_FILE,"send_data_test:qnode is null\n");
-		return NULL;		
+		return ;		
 	}
 	printf("send_data_test command\n");
 	char msg_type = qnode->msg_type;
@@ -291,6 +297,17 @@ void send_data_test(queue* que,q_node* qnode)
 
 			break;			
 	}
+	for(int i=0;i<4;i++)
+	{
+		int socket = nl->route.gamelog_socket[i];
+		char* buf = "DATA";
+		int n = write(socket,buf,strlen(buf));
+		if(n == strlen(buf))
+		{
+			printf("send data success\n");
+		}
+	}
+	
 }
 
 
@@ -338,7 +355,7 @@ static imform2_game* pack_inform_data(unsigned char len_pack,int uid_pack,char t
 	return NULL;
 }
 
-static void dispose_netio_thread_que(queue* que,q_node* qnode)
+static void dispose_netio_thread_que(net_logic* nl,queue* que,q_node* qnode)
 {
 	char type = qnode->msg_type;  		// 'D' 'S' 'C'
 	int uid = qnode->uid;
@@ -353,7 +370,7 @@ static void dispose_netio_thread_que(queue* que,q_node* qnode)
 				q_node* send_qnode = pack_user_data(deseria_data,uid);        		//pack
 				//send_data_2_game_logic(send_qnode);							  	//send
 				printf("test start:\n");
-				send_data_test(que,send_qnode);
+				send_data_test(nl,que,send_qnode);
 				break;				
 			}
 
@@ -382,7 +399,7 @@ static int dispose_queue_event(net_logic* nt)
 		switch(service_type)
 		{
 			case SERVICE_TYPE_NET_IO:			
-				dispose_netio_thread_que(que,qnode);
+				dispose_netio_thread_que(nt,que,qnode);
 				break;
 
 			case SERVICE_TYPE_GAME_LOGIC:
@@ -424,6 +441,7 @@ static int dispose_threading_read_msg(net_logic* nt,service* sv)
 		close(sv->sock_fd);
 		return EVENT_THREAD_DISCONNECT;
 	}	
+	return 0;
 }
 
 static int net_logic_event(net_logic *nt)
@@ -498,6 +516,45 @@ static int net_logic_event(net_logic *nt)
 	}
 }
 
+static int netlogic_lisen_creat(net_logic* nl)
+{
+    int listen_fd;
+    listen_fd = socket(AF_INET,SOCK_STREAM,0);
+    if (listen_fd == -1)
+    {
+        fprintf(ERR_FILE,"listen socket create error\n");
+        return -1;
+    }
+
+    struct sockaddr_in serv_addr;     //ipv4 struction
+    bzero(&serv_addr,sizeof(nl->serv_addr));
+    serv_addr.sin_family = AF_INET;   //ipv4
+    serv_addr.sin_addr.s_addr = inet_addr(nl->serv_addr);
+    serv_addr.sin_port = htons(nl->serv_port);           //主机->网络
+
+    int optval = 1;
+    if(setsockopt(listen_fd,SOL_SOCKET,SO_REUSEADDR,&optval,sizeof(optval)) == -1)
+    {
+    	fprintf(ERR_FILE,"setsockopt failed\n");  
+    	goto _err;   
+    }
+    if (bind(listen_fd,(struct sockaddr*)&serv_addr,sizeof(serv_addr)) == -1)
+    {
+        fprintf(ERR_FILE,"bind failed\n");  
+        goto _err;      
+    }
+	if (listen(listen_fd, MAX_SERVICE) == -1) 
+	{
+		fprintf(ERR_FILE,"listen failed\n"); 
+		goto _err;
+	}   
+	nl->listen_fd = listen_fd;
+    return 0;
+
+_err:
+	close(listen_fd);
+	return -1;  	
+}
 
 static int connect_netio_service(net_logic* nl,char* netio_addr,int netio_port)
 {
@@ -513,8 +570,15 @@ static int connect_netio_service(net_logic* nl,char* netio_addr,int netio_port)
     }
 
     netlog_service_addr.sin_family = AF_INET;
-    netlog_service_addr.sin_port = htons(NETLOGIC_SERVICE_PORT);		//8001
-    bind(sockfd,(struct sockaddr*)(&netlog_service_addr),sizeof(netlog_service_addr));
+    netlog_service_addr.sin_port = htons(8009);		//8001
+    netlog_service_addr.sin_addr.s_addr = inet_addr("127.0.0.1");//need
+    printf("netio:port=%d\n",PORT_NETLOGIC_SERVICE);
+    if(bind(sockfd,(struct sockaddr*)(&netlog_service_addr),sizeof(netlog_service_addr)) == -1)
+    {
+       fprintf(ERR_FILE,"connect_netio_service:bind failed\n");
+       perror("netlogic bind err:");
+       return -1;    	
+    }
 
     //set service address
     memset(&netio_server_addr,0,sizeof(netio_server_addr));
@@ -571,25 +635,25 @@ static int accept_gamelog_service_connect(net_logic* nl)
 		else
 		{
 			int port = ntohs(addr.sin_port);  //客户端的端口
-			printf("dispatch accept\n");
+			printf("netlogic dispatch accept,port = %d\n",port);
 			switch(port)
 			{
-				case GAME_LOGIC_SERVICE_FIRST:
+				case PORT_GAME_LOGIC_SERVICE_FIRST:
 					nl->route.gamelog_socket[GAME_LOGIC_SERVER_FIRST] = socket;
 					accept_num++;
 					break;
 
-				case GAME_LOGIC_SERVICE_SECOND:
+				case PORT_GAME_LOGIC_SERVICE_SECOND:
 					nl->route.gamelog_socket[GAME_LOGIC_SERVER_SECOND] = socket;
 					accept_num++;				
 					break;
 
-				case GAME_LOGIC_SERVICE_THIRD:
+				case PORT_GAME_LOGIC_SERVICE_THIRD:
 					nl->route.gamelog_socket[GAME_LOGIC_SERVER_THIRD] = socket;
 					accept_num++;
 					break;
 
-				case GAME_LOGIC_SERVICE_FOURTH:
+				case PORT_GAME_LOGIC_SERVICE_FOURTH:
 					nl->route.gamelog_socket[GAME_LOGIC_SERVER_FOURTH] = socket;
 					accept_num++;
 					break;
@@ -603,10 +667,12 @@ static int accept_gamelog_service_connect(net_logic* nl)
 			{
 				for(int i=0; i<GAME_LOGIC_SERVICE_NUM; i++)
 				{
-					service* sv = &nt->service_pool[SERVICE_ID_GAME_FIRST+i];
+					service* sv = &(nl->service_pool[SERVICE_ID_GAME_FIRST+i]);
 					sv->service_id = SERVICE_ID_GAME_FIRST + i;
 					sv->sock_fd = nl->route.gamelog_socket[i];
 					sv->type = SERVICE_TYPE_GAME_LOGIC;
+					int sockfd = sv->sock_fd;
+
 					if(epoll_add(nl->epoll_fd,sockfd,sv) == -1)
 			    	{
 			       		fprintf(ERR_FILE,"accept_gamelog_service_connect:epoll_add failed\n");
@@ -621,22 +687,23 @@ static int accept_gamelog_service_connect(net_logic* nl)
 	return -1;
 }
 
-int 
+
 
 static int service_connect_establish(net_logic_start* start,net_logic* nl)
 {
 	char* netio_addr = start->netio_addr;
 	int netio_port = start->netio_port;
+
 	if(connect_netio_service(nl,netio_addr,netio_port) == -1)
 	{
        fprintf(ERR_FILE,"service_connect_establish:connect_netio_service failed\n");
        return -1;			
 	}
-	if(accept_gamelog_service_connect(nl) == -1)
-	{
-       fprintf(ERR_FILE,"service_connect_establish:connect game_logic service failed\n");
-       return -1;			
-	}
+	// if(accept_gamelog_service_connect(nl) == -1)
+	// {
+ //       fprintf(ERR_FILE,"service_connect_establish:connect game_logic service failed\n");
+ //       return -1;			
+	// }
 	return 0;
 }
 
@@ -649,10 +716,14 @@ net_logic_start* net_logic_start_creat(queue* que_pool)
        fprintf(ERR_FILE,"net_logic_start_creat:start malloc failed\n");
        return NULL;			
 	}
+
 	start->que_pool = que_pool;
 	start->service_id = 1;
 	start->netio_addr = "127.0.0.1";
 	start->netio_port = 8000;
+
+	start->netlog_addr = "127.0.0.1";
+	start->netlog_port = 8009;
 
 	return start;
 }
@@ -666,6 +737,11 @@ void* net_logic_service_loop(void* arg)
        fprintf(ERR_FILE,"net_logic_service_loop:connect_netio_service disconnect\n");
        return NULL;		
 	}
+	// if(netlogic_lisen_creat(nt) == -1)
+	// {
+ //       fprintf(ERR_FILE,"net_logic_service_loop:netlogic_lisen_creat\n");
+ //       return NULL;			
+	// }
 	if(service_connect_establish(start,nt) == -1)
 	{
        fprintf(ERR_FILE,"net_logic_service_loop:service_connect_establish failed\n");

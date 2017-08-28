@@ -3,7 +3,7 @@
 #include "message.pb-c.h"
 #include "net_logic.h"
 #include "err.h"
-#include "port"
+#include "port.h"
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -12,6 +12,10 @@
 #include <malloc.h>
 #include <string.h>
 #include <errno.h>
+
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 //http://www.cnblogs.com/purpleraintear/p/6160733.html
 
 //一个游戏逻辑线程最大支持20*10个玩家在线
@@ -64,6 +68,7 @@ typedef struct _game_logic
 	int service_port;
 	fd_set select_set;
 	bool check_que;
+	int serv_port;
 }game_logic;
 
 
@@ -108,9 +113,17 @@ static game_logic* game_logic_creat(game_logic_start* start)
 	gl->netlog_addr = start->netlog_addr;
 	gl->netlog_port = start->netlog_port;
 	gl->service_port = start->service_port;
+
+	printf("game logic message\n");
+	printf("gl->netlog_addr = %s\n",gl->netlog_addr);
+	printf("gl->netlog_port = %d\n",gl->netlog_port);
+	printf("game_logic_creat:gl->service_port = %d\n",gl->service_port);
+
 	gl->check_que = false;
 
 	FD_ZERO(&gl->select_set); 
+
+	return gl;
 }
 
 static bool have_event(game_logic* gl)
@@ -128,7 +141,7 @@ static bool have_event(game_logic* gl)
 
 static int dispose_queue_event(game_logic* gl)
 {
-	printf("game_logic port = %d dispose queue message\n",gl->serv_port);
+	printf("game_logic port = %d dispose queue message\n",gl->service_port);
 	return -1;
 }
 
@@ -180,6 +193,7 @@ static int game_logic_event(game_logic* gl)
 		if(have_event(gl) == true)
 		{
 			gl->check_que = true;
+			printf("game:select change\n");
 			if(dispose_socket_event(gl) == -1)
 			{
 				fprintf(ERR_FILE,"game_logic_event: dispose_socket_event error\n");
@@ -190,10 +204,11 @@ static int game_logic_event(game_logic* gl)
 }
 
 
-int connect_netlogic_service(game_logic* gl)
+static int connect_netlogic_service(game_logic* gl)
 {
     struct sockaddr_in netlog_service_addr;
     struct sockaddr_in game_service_addr;
+    
     //creat socket
     int sockfd = socket(AF_INET,SOCK_STREAM,0);
     if( sockfd == -1 )
@@ -214,7 +229,7 @@ int connect_netlogic_service(game_logic* gl)
 
     for( ;; )
     {
-	    if((connect(sockfd,(struct sockaddr*)(&netio_server_addr),sizeof(struct sockaddr))) == -1)
+	    if((connect(sockfd,(struct sockaddr*)(&netlog_service_addr),sizeof(struct sockaddr))) == -1)
 	    {
 	        fprintf(ERR_FILE,"connect_netlogic_service:service disconnect\n");
 	        sleep(1);
@@ -241,11 +256,12 @@ void* game_logic_service_loop(void* arg)
 		fprintf(ERR_FILE,"game_logic_service_loop:connect_netlogic_service disconnect\n");
 		return NULL;
 	}
+
 	int type = 0;
 	for( ; ; )
 	{
 		type = game_logic_event(gl);
-		switch(type):
+		switch(type)
 		{
 			case GAME_LOG_EVENT_QUE_NULL:
 				printf("game_logic:port = %d,queue null\n",gl->serv_port);
@@ -257,5 +273,5 @@ void* game_logic_service_loop(void* arg)
 				break;
 		}
 	}
-}
 
+}

@@ -1,6 +1,8 @@
 #ifndef _LOCK_QUEUE_H
 #define _LOCK_QUEUE_H
 
+#include "spin_lock.h"
+
 #include <pthread.h>
 //网关服务中网络IO处理线程与事务处理线程通信的数据类型约定
 //消息队列的双方的通信约定

@@ -13,14 +13,14 @@
 #define QUE_ID_NETLOGIC_2_GAME_FOURTH	 5
 #define QUE_ID_GAMELOGIC_2_NETLOGIC	     6  
 
-#define SERVICE_ID_NETWORK_IO       0
-#define SERVICE_ID_NET_ROUTE        1
-#define SERVICE_ID_LOG              2
-#define SERVICE_ID_DB               3
-#define SERVICE_ID_GAME_FIRST       4
-#define SERVICE_ID_GAME_SECOND      5
-#define SERVICE_ID_GAME_THIRD       6
-#define SERVICE_ID_GAME_FOURTH      7
+#define SERVICE_ID_NETWORK_IO       	 0
+#define SERVICE_ID_NET_ROUTE        	 1
+#define SERVICE_ID_LOG              	 2
+#define SERVICE_ID_DB               	 3
+#define SERVICE_ID_GAME_FIRST       	 4
+#define SERVICE_ID_GAME_SECOND      	 5
+#define SERVICE_ID_GAME_THIRD       	 6
+#define SERVICE_ID_GAME_FOURTH      	 7
 
 // typedef struct _double_que
 // {
@@ -34,10 +34,12 @@ typedef struct _net_logic_start
 	int service_id;	
 	char* netio_addr;
 	int netio_port;
+	char* netlog_addr;
+	int netlog_port;
 }net_logic_start;
 
 
-queue* communication_que_creat();
+queue* message_que_creat();
 net_logic_start* net_logic_start_creat(queue* que_pool);
 void* net_logic_service_loop(void* arg);
 #endif
