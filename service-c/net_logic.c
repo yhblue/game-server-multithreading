@@ -123,7 +123,6 @@ queue* message_que_creat()
 }
 
 //为一个新的 socket 分配到一个游戏逻辑服务的 id
-//
 uint8_t route_distribute_gamelogic(net_logic* nl)
 {
 	int gamelogic01_player = nl->route.online_player[GAME_LOGIC_SERVER_FIRST];
@@ -329,11 +328,6 @@ static int send_msg_2_game_logic(net_logic* nl,q_node* qnode,int uid) //socket_i
 		return -1;		
 	}
 	return 0;
-}
-
-static int send_inform_2_game_logic(net_logic* nl,q_node* qnode,int uid)
-{
-
 }
 
 static q_node* pack_user_data(deserialize* desseria_data,int uid_pack,char type_pack)
@@ -701,6 +695,12 @@ static int accept_gamelog_service_connect(net_logic* nl)
 					sv->type = SERVICE_TYPE_GAME_LOGIC;
 					int sockfd = sv->sock_fd;
 
+					socket_keepalive(sv->sock_fd);
+					if(set_nonblock(sv->sock_fd) == -1)
+					{
+						fprintf(ERR_FILE,"set set_nonblock failed\n");
+						return -1;
+					}
 					if(epoll_add(nl->epoll_fd,sockfd,sv) == -1)
 			    	{
 			       		fprintf(ERR_FILE,"accept_gamelog_service_connect:epoll_add failed\n");
@@ -714,7 +714,6 @@ static int accept_gamelog_service_connect(net_logic* nl)
 	}
 	return -1;
 }
-
 
 
 static int service_connect_establish(net_logic_start* start,net_logic* nl)

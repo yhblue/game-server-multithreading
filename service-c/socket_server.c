@@ -138,7 +138,7 @@ static struct socket* apply_socket(struct socket_server *ss,int fd,int id,bool a
 	return s;
 }
 
-static void socket_keepalive(int fd)
+void socket_keepalive(int fd)
 {
 	int keep_alive = 1;
 	setsockopt(fd,SOL_SOCKET,SO_KEEPALIVE,(void*)&keep_alive,sizeof(keep_alive));
@@ -623,7 +623,6 @@ static int socket_server_event(struct socket_server *ss, struct socket_message *
 			case SOCKET_TYPE_CONNECT_ADD:
 				if(eve->read)
 				{
-					//sleep(1);
 					int ret_type = dispose_readmessage(ss,s,result);
 					if(ret_type == -1)
 					{
@@ -720,11 +719,11 @@ static q_node* dispose_event_result(struct socket_server* ss,struct socket_messa
 	return qnode;
 }
 
-static void send_client_data2net_logic(struct socket_server* ss,q_node* qnode)
+static void send_client_msg2net_logic(struct socket_server* ss,q_node* qnode)
 {
 	if(qnode == NULL)
 	{
-		fprintf(ERR_FILE,"send_client_data2net_logic:a null qnode\n");
+		fprintf(ERR_FILE,"send_client_msg2net_logic:a null qnode\n");
 		return; 		
 	}
 	queue_push(ss->io2netlogic_que,qnode); //封装成一个send函数
@@ -766,6 +765,12 @@ static int wait_netlogic_service_connect(struct socket_server* ss)
 			printf("netio dispatch accept,port = %d\n",port);
 			if(port == PORT_NETLOG_2_NETIO_SERVICE) //必须是这个端口
 			{
+				socket_keepalive(socket);
+				if(set_nonblock(socket) == -1)
+				{
+					fprintf(ERR_FILE,"wait_netlogic_service_connect:set set_nonblock failed\n");
+					return -1;
+				}				
 				int id = apply_id();
 				struct socket* s = apply_socket(ss,socket,id,true);
 				if(s == NULL)
@@ -837,7 +842,7 @@ void* network_io_service_loop(void* arg)
 			case SOCKET_CLOSE:
 			case SOCKET_SUCCESS:
 				qnode = dispose_event_result(ss,&result,type);	
-				send_client_data2net_logic(ss,qnode);         	//通知 netlogic service
+				send_client_msg2net_logic(ss,qnode);         	//通知 netlogic service
 				break;
 
 			default:
