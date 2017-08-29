@@ -155,9 +155,9 @@ static int do_listen(const char* host,int port,int max_connect)
         return -1;
     }
 
-    struct sockaddr_in serv_addr;     //ipv4 struction
+    struct sockaddr_in serv_addr;     	//ipv4 struction
     bzero(&serv_addr,sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;  //ipv4
+    serv_addr.sin_family = AF_INET;  	//ipv4
     serv_addr.sin_addr.s_addr = inet_addr(host);
     serv_addr.sin_port = htons(port);              //主机->网络
 
@@ -286,9 +286,9 @@ static int dispose_readmessage(struct socket_server *ss,struct socket *s, struct
 		return -1;
 	}
 	memset(buffer,0,len);
-	printf("need to read:%d\n",len);
+	//printf("need to read:%d\n",len);
 	n = (int)read(s->fd,buffer,len);
-	printf("read is :%d\n",n);
+	//printf("read is :%d\n",n);
 	if(n <= 0)
 		goto _err;
 
@@ -456,13 +456,10 @@ static int send_data(struct socket_server* ss,struct socket *s,struct socket_mes
 // 	return 0;
 // }
 
-
-static int send_notice2_netlogic_service(struct socket_server* ss)
+//发送通知唤醒其他服务的函数
+int send_msg2_service(int socket)
 {
-	struct socket *s = ss->socket_netlog;
-	int socket = s->fd;
-	char* buf = "D"; 	//无任何意义的数据，为了唤醒 net_logic service 的 epoll
-
+	char* buf = "D"; 	//无任何意义的数据，为了唤醒其他服务
 	int n = write(socket,buf,strlen(buf));
 	if(n == -1)
 	{
@@ -471,16 +468,17 @@ static int send_notice2_netlogic_service(struct socket_server* ss)
 			case EINTR:
 				//continue;
 			case EAGAIN:
-				return -1;
+				return 0; //wait next time
 			default:
-			fprintf(stderr, "send_notice2_netlogic_service: write to netlogic_socket %d (fd=%d) error.",s->id,s->fd);
-			//close_fd(ss,s,result);
-			//
-			return -1;
+				close(socket);
+				fprintf(stderr, "send_msg2_service: write socket = %d error.",socket);
+				return -1;
 		}
 	}
-	return 0;
+	return 0;	
 }
+
+
 
 //----------------------------------------------------------------------------------------------------------------------
 static struct socket_server* socket_server_create(net_io_start* start)
@@ -730,7 +728,9 @@ static void send_client_data2net_logic(struct socket_server* ss,q_node* qnode)
 		return; 		
 	}
 	queue_push(ss->io2netlogic_que,qnode); //封装成一个send函数
-	send_notice2_netlogic_service(ss);	   //socket发送一个字节的信息给net_logic
+
+	int socket = (ss->socket_netlog)->fd;
+	send_msg2_service(socket);			   //发送通知给 net_logic service
 }
 
 //这里应该不要传递那么多参数，直接传递读配置文件后返回的指针吧
@@ -786,7 +786,6 @@ static int wait_netlogic_service_connect(struct socket_server* ss)
 			}				
 		}		
 	}
-
 	return 0;
 }
 
@@ -837,8 +836,8 @@ void* network_io_service_loop(void* arg)
 			case SOCKET_DATA:
 			case SOCKET_CLOSE:
 			case SOCKET_SUCCESS:
-				qnode = dispose_event_result(ss,&result,type);
-				send_client_data2net_logic(ss,qnode);
+				qnode = dispose_event_result(ss,&result,type);	
+				send_client_data2net_logic(ss,qnode);         	//通知 netlogic service
 				break;
 
 			default:
@@ -849,40 +848,6 @@ _EXIT:
 	socket_server_release(ss);	
 	return NULL;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1043,6 +1008,33 @@ struct request_package
 // 		ss->pipe_write_fd = pipe_fd[1];
 // 	}
 // 	return pipe_fd[0];
+// }
+
+
+// static int send_notice2_netlogic_service(struct socket_server* ss)
+// {
+// 	struct socket *s = ss->socket_netlog;
+// 	int socket = s->fd;
+// 	int socket = (ss->socket_netlog)->fd;
+// 	char* buf = "D"; 	//无任何意义的数据，为了唤醒 net_logic service 的 epoll
+
+// 	int n = write(socket,buf,strlen(buf));
+// 	if(n == -1)
+// 	{
+// 		switch(errno)
+// 		{
+// 			case EINTR:
+// 				//continue;
+// 			case EAGAIN:
+// 				return -1;
+// 			default:
+// 			fprintf(stderr, "send_notice2_netlogic_service: write to netlogic_socket %d (fd=%d) error.",s->id,s->fd);
+// 			//close_fd(ss,s,result);
+// 			//
+// 			return -1;
+// 		}
+// 	}
+// 	return 0;
 // }
 
 */

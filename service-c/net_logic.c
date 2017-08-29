@@ -51,7 +51,7 @@
 #define GAME_LOGIC_SERVER_THIRD     2
 #define GAME_LOGIC_SERVER_FOURTH    3
 
-
+#define PLAYER_TYPE_INVALID		   -1
 
 typedef struct _pack_head
 {
@@ -82,7 +82,8 @@ typedef struct _router
 	unsigned char sock_id2game_logic[MAX_SOCKET];			//用户socket id 到 游戏逻辑服务的id 0-3
 	int online_player[GAME_LOGIC_SERVICE_NUM];  			//记录每个游戏服务的人数 
 	queue* que_2_gamelogic[GAME_LOGIC_SERVICE_NUM]; 		//net logic 服务到 game logic服务各自的消息队列
-	int gamelog_socket[GAME_THREADING_NUM];                 //与game_logic 服务通信的socket
+	int gamelog_socket[GAME_LOGIC_SERVICE_NUM];             //与game_logic 服务通信的socket
+	int game_service_id;									//存储当前 socket 所在的游戏逻辑服务 id
 }router;
 
 typedef struct _net_logic
@@ -121,7 +122,9 @@ queue* message_que_creat()
 	return que_pool;
 }
 
-uint8_t route_get_gamelogic_id(net_logic* nl)
+//为一个新的 socket 分配到一个游戏逻辑服务的 id
+//
+uint8_t route_distribute_gamelogic(net_logic* nl)
 {
 	int gamelogic01_player = nl->route.online_player[GAME_LOGIC_SERVER_FIRST];
 	int gamelogic02_player = nl->route.online_player[GAME_LOGIC_SERVER_SECOND];
@@ -136,9 +139,32 @@ uint8_t route_get_gamelogic_id(net_logic* nl)
 	return ret;
 }
 
-void route_set_sock_id2game_logic(net_logic* nl,int socket_id,uint8_t game_id)
+static uint8_t route_get_gamelogic_id(net_logic* nl,int socket_id)
 {
-	nl->route.sock_id2game_logic[socket_id] = game_id;
+	if(nl->route.sock_id2game_logic[socket_id] == PLAYER_TYPE_INVALID) //新的客户端
+	{
+		nl->route.game_service_id = route_distribute_gamelogic(nl);    //分配游戏服务来处理
+		nl->route.sock_id2game_logic[socket_id] = nl->route.game_service_id; 
+		nl->route.online_player[nl->route.game_service_id] ++;
+	}
+	else
+	{
+		nl->route.game_service_id = nl->route.sock_id2game_logic[socket_id];
+	}
+	return game_service_id;
+}
+
+static queue* route_get_msg_que(net_logic* nl,int socket_id)
+{
+	route_get_gamelogic_id(nl,socket_id);
+	return nl->route.que_2_gamelogic[nl->route.game_service_id];
+}
+
+static inline 
+int route_get_msg_socket(net_logic* nl,int socket_id)
+{
+//	route_get_gamelogic_id(nl,socket_id);
+	return nl->route.gamelog_socket[nl->route.game_service_id];		   //socket
 }
 
 //这个函数看看能不能改一下，这个函数必须依赖网络IO线程按照指定格式读，这样效率低
@@ -228,7 +254,7 @@ static net_logic* net_logic_creat(net_logic_start* start)
 
 	for(int i=0; i<MAX_SOCKET; i++)
 	{
-		nt->route.sock_id2game_logic[i] = 0;
+		nt->route.sock_id2game_logic[i] = PLAYER_TYPE_INVALID;//未使用的空间，这个socket未连接上
 	}
 	for(int i=0; i<GAME_LOGIC_SERVICE_NUM; i++)
 	{
@@ -241,25 +267,7 @@ static net_logic* net_logic_creat(net_logic_start* start)
 	return nt;
 }
 
-static q_node* pack_user_data(deserialize* desseria_data,int uid_pack)
-{
-	q_node* qnode = (q_node*)malloc(sizeof(q_node));
-	if(qnode == NULL)
-	{
-		fprintf(ERR_FILE,"pack_user_data:qnode malloc failed\n");
-		return NULL;
-	}
 
-	qnode->msg_type = TYPE_DATA;
-	qnode->uid = uid_pack;
-	qnode->len = 0;
-	qnode->next = NULL;
-
-	qnode->proto_type = desseria_data->proto_type;
-	qnode->buffer = desseria_data->buffer; 
-
-	return qnode;
-}
 
 //测试 client -> netio -> net_logic 打印反序列化之后的数据 
 void send_data_test(net_logic* nl,queue* que,q_node* qnode)
@@ -310,52 +318,64 @@ void send_data_test(net_logic* nl,queue* que,q_node* qnode)
 	
 }
 
-
-static int send_data_2_game_logic(net_logic* nl,q_node* qnode)
+static int send_msg_2_game_logic(net_logic* nl,q_node* qnode,int uid) //socket_id
 {
-	// int uid = send_data->qnode.uid;           
-	// int que_id = route_get_queue(nl);         //根据路由表得到线程的id
-
-	// queue* que = route_get_queue(nl);  	  	 //得到应该把数据分发给哪一个队列
-	// q_node* qnode = send_data->qnode;     	
-	// queue_push(que,qnode);	                 //发送数据给其他线程相当于向对应的消息队列中push数据
+	queue* que = route_get_msg_que(nl,uid);
+	queue_push(que,qnode);
+	int socket = route_get_msg_socket(nl,uid);
+	if(send_msg2_service() == -1)
+	{
+		fprintf(ERR_FILE,"send_msg_2_game_logic:send_msg2_service failed\n");
+		return -1;		
+	}
 	return 0;
 }
 
-//路由表的功能是:根据 uid和 发送/接收 队列得到相应的队列
-static int route_get_queue(net_logic* nl,int que_type)
+static int send_inform_2_game_logic(net_logic* nl,q_node* qnode,int uid)
 {
-	// int index = //继续写这里
-	// double_que* dou_que = nil->que_pool[]
-	// if(que_type == TO_OTHER_THREAD_QUE)  //current thread to other thread
-	// {
-	// 	que = dou_que[TO_OTHER_THREAD_QUE];
-	// }
-	// else if(que_type == FROM_OTHER_THREAD_QUE)
-	// {
-	// 	que = dou_que[FROM_OTHER_THREAD_QUE];
-	// }
-	// return que;
-	return 0;
+
 }
 
-static imform2_game* pack_inform_data(unsigned char len_pack,int uid_pack,char type_pack)
+static q_node* pack_user_data(deserialize* desseria_data,int uid_pack,char type_pack)
 {
-	// imform2_game* pack = (imform2_game*)malloc(sizeof(imform2_game));
-	// if(pack == NULL)
-	// {
-	// 	fprintf(ERR_FILE,"pack_inform:pack malloc failed\n");
-	// 	return NULL;
-	// }	
-	// pack->content_len = len_pack;
-	// pack->msg_type = type_pack;
-	// pack->uid = uid_pack;
+	q_node* qnode = (q_node*)malloc(sizeof(q_node));
+	if(qnode == NULL)
+	{
+		fprintf(ERR_FILE,"pack_user_data:qnode malloc failed\n");
+		return NULL;
+	}
 
-	// return pack;
-	return NULL;
+	qnode->msg_type = type_pack;
+	qnode->uid = uid_pack;
+	qnode->len = 0;
+	qnode->next = NULL;
+
+	qnode->proto_type = desseria_data->proto_type;
+	qnode->buffer = desseria_data->buffer; 
+
+	return qnode;
 }
 
-static void dispose_netio_thread_que(net_logic* nl,queue* que,q_node* qnode)
+static q_node* pack_inform_data(int uid_pack,char type_pack)
+{
+	q_node* qnode = (q_node*)malloc(sizeof(q_node));
+	if(qnode == NULL)
+	{
+		fprintf(ERR_FILE,"pack_user_data:qnode malloc failed\n");
+		return NULL;
+	}
+
+	qnode->msg_type = type_pack;
+	qnode->uid = uid_pack;  			//只有这两个数据有用
+	qnode->len = 0;
+	qnode->proto_type = 0;
+	qnode->buffer = NULL; 
+	qnode->next = NULL;					
+
+	return qnode;
+}
+
+static int dispose_netio_service_que(net_logic* nl,queue* que,q_node* qnode)
 {
 	char type = qnode->msg_type;  		// 'D' 'S' 'C'
 	int uid = qnode->uid;
@@ -364,31 +384,30 @@ static void dispose_netio_thread_que(net_logic* nl,queue* que,q_node* qnode)
 
 	switch(type)
 	{
-		case TYPE_DATA:     			// 'D' data--upack--pack--send
-			{
-				deserialize* deseria_data = unpack_user_data(data,content_len);    	//upack
-				q_node* send_qnode = pack_user_data(deseria_data,uid);        		//pack
-				//send_data_2_game_logic(send_qnode);							  	//send
-				printf("test start:\n");
-				send_data_test(nl,que,send_qnode);
-				break;				
-			}
+		case TYPE_DATA:     			// 'D' 
+		{
+			deserialize* deseria_data = unpack_user_data(data,content_len);    	//upack
+			q_node* send_qnode = pack_user_data(deseria_data,uid,type);        	//pack
+			send_msg_2_game_logic(nl,send_qnode,uid);							//send
+			//send_data_test(nl,que,send_qnode);
+			break;				
+		}
 
 		case TYPE_CLOSE:    			// 'C'
 		case TYPE_SUCCESS:  			// 'S' 
-			{
-				imform2_game* send_inform = pack_inform_data(content_len,uid,type);  //len暂时不需要用到
-				//send_inform_2_game_logic(nl,send_inform);
-				break;				
-			}
-
-	}		
+		{
+			q_node* send_qnode = pack_inform_data(content_len,uid,type); 
+			send_msg_2_game_logic(nl,send_qnode,uid);
+			break;				
+		}
+	}	
+	return 0;	
 } 
 
-static int dispose_queue_event(net_logic* nt)
+static int dispose_queue_event(net_logic* nl)
 {
-	int service_type = nt->current_serice->type;
-	queue* que = nt->current_que;
+	int service_type = nl->current_serice->type;
+	queue* que = nl->current_que;
 	q_node* qnode = queue_pop(que);
 	if(qnode == NULL) //队列无数据
 	{
@@ -399,7 +418,7 @@ static int dispose_queue_event(net_logic* nt)
 		switch(service_type)
 		{
 			case SERVICE_TYPE_NET_IO:			
-				dispose_netio_thread_que(nt,que,qnode);
+				dispose_netio_service_que(nl,que,qnode);
 				break;
 
 			case SERVICE_TYPE_GAME_LOGIC:
@@ -450,9 +469,9 @@ static int net_logic_event(net_logic *nt)
 	{
 		if(nt->check_que == true) 
 		{
-			printf("handle que event start!\n");
+//			printf("handle que event start!\n");
 			int ret = dispose_queue_event(nt);
-			printf("handle que event! end\n");
+//			printf("handle que event! end\n");
 			if(ret == -1) //queue is null
 			{
 				nt->check_que = false;
@@ -648,7 +667,7 @@ static int accept_gamelog_service_connect(net_logic* nl)
 			switch(port)
 			{
 				case PORT_GAME_LOGIC_SERVICE_FIRST:
-					nl->route.gamelog_socket[GAME_LOGIC_SERVER_FIRST] = socket;
+					nl->route.gamelog_socket[GAME_LOGIC_SERVER_FIRST] = socket;							
 					accept_num++;
 					break;
 
