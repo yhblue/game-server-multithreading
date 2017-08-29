@@ -219,26 +219,31 @@ static int connect_netlogic_service(game_logic* gl)
 
     game_service_addr.sin_family = AF_INET;
     game_service_addr.sin_port = htons(gl->service_port);			//8002-8005
-    bind(sockfd,(struct sockaddr*)(&game_service_addr),sizeof(game_service_addr));
+    game_service_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    if(bind(sockfd,(struct sockaddr*)(&game_service_addr),sizeof(game_service_addr)) == -1)
+    {
+       fprintf(ERR_FILE,"connect_netlogic_service:socket bind failed\n");
+       return -1;    	
+    }
 
     //set service address
     memset(&netlog_service_addr,0,sizeof(netlog_service_addr));
     netlog_service_addr.sin_family = AF_INET;
-    netlog_service_addr.sin_port = htons(gl->netlog_port);
+    netlog_service_addr.sin_port = htons(PORT_NETLOG_LISTENING);
     netlog_service_addr.sin_addr.s_addr = inet_addr(gl->netlog_addr);
 
     for( ;; )
     {
 	    if((connect(sockfd,(struct sockaddr*)(&netlog_service_addr),sizeof(struct sockaddr))) == -1)
 	    {
-	        fprintf(ERR_FILE,"connect_netlogic_service:service disconnect\n");
+	        fprintf(ERR_FILE,"game:connect_netlogic_service:service disconnect\n");
 	        sleep(1);
 	    }
 	    else
 	    {
 		    //connect sussess
 		    gl->sock_2_net_logic = sockfd;
-		    printf("game_logic service connect to net_logic service service success!\n");
+		    printf("game:game_logic service connect to net_logic service service success!\n");
 		    return 0;    	
 	    }	
     }
@@ -264,8 +269,7 @@ void* game_logic_service_loop(void* arg)
 		switch(type)
 		{
 			case GAME_LOG_EVENT_QUE_NULL:
-				printf("game_logic:port = %d,queue null\n",gl->serv_port);
-				sleep(5);
+				printf("game_logic:port = %d,queue null\n",gl->service_port);
 				break;
 
 			case GAME_LOG_EVENT_SOCKET_CLOSE:

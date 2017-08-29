@@ -527,10 +527,10 @@ static int netlogic_lisen_creat(net_logic* nl)
     }
 
     struct sockaddr_in serv_addr;     //ipv4 struction
-    bzero(&serv_addr,sizeof(nl->serv_addr));
+    bzero(&serv_addr,sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;   //ipv4
     serv_addr.sin_addr.s_addr = inet_addr(nl->serv_addr);
-    serv_addr.sin_port = htons(nl->serv_port);           //主机->网络
+    serv_addr.sin_port = htons(PORT_NETLOG_LISTENING);      //主机->网络 nl->serv_port
 
     int optval = 1;
     if(setsockopt(listen_fd,SOL_SOCKET,SO_REUSEADDR,&optval,sizeof(optval)) == -1)
@@ -569,14 +569,23 @@ static int connect_netio_service(net_logic* nl,char* netio_addr,int netio_port)
        return -1;
     }
 
+    memset(&netlog_service_addr,0,sizeof(netlog_service_addr));
     netlog_service_addr.sin_family = AF_INET;
-    netlog_service_addr.sin_port = htons(8009);		//8001
-    netlog_service_addr.sin_addr.s_addr = inet_addr("127.0.0.1");//need
-    printf("netio:port=%d\n",PORT_NETLOGIC_SERVICE);
+    netlog_service_addr.sin_port = htons(PORT_NETLOG_2_NETIO_SERVICE);		//8001
+
+    printf("netio:port=%d\n",PORT_NETLOG_2_NETIO_SERVICE);
+
+	int optval = 1;
+	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1)
+	{
+		perror("setsockopt bind\n");
+		return -1; 
+	}
+
     if(bind(sockfd,(struct sockaddr*)(&netlog_service_addr),sizeof(netlog_service_addr)) == -1)
     {
        fprintf(ERR_FILE,"connect_netio_service:bind failed\n");
-       perror("netlogic bind err:");
+       perror("netlogic bind err");
        return -1;    	
     }
 
@@ -590,20 +599,20 @@ static int connect_netio_service(net_logic* nl,char* netio_addr,int netio_port)
     {
 	    if((connect(sockfd,(struct sockaddr*)(&netio_server_addr),sizeof(struct sockaddr))) == -1)
 	    {
-	        fprintf(ERR_FILE,"connect_netio_service:netlogic_thread disconnect\n");
+	        fprintf(ERR_FILE,"netlogic:connect_netio_service:netlogic_thread disconnect\n");
 	        //return -1;
 	        sleep(1);
 	    }
 	    else
 	    {
 		    //connect sussess
-			service* sv = &nl->service_pool[SERVICE_ID_NETWORK_IO];
+		    service* sv = &nl->service_pool[SERVICE_ID_NETWORK_IO];
 		    sv->service_id = SERVICE_ID_NETWORK_IO;
 		    sv->sock_fd = sockfd;
 		    sv->type = SERVICE_TYPE_NET_IO;
 		    
 		    //add to epoll
-		    printf("net_logic service connect to net_io service success!\n");
+		    printf("netlogic:net_logic service connect to net_io service success!\n");
 		    if(epoll_add(nl->epoll_fd,sockfd,sv) == -1)
 		    {
 		       fprintf(ERR_FILE,"connect_netio_service:epoll_add failed\n");
@@ -699,11 +708,11 @@ static int service_connect_establish(net_logic_start* start,net_logic* nl)
        fprintf(ERR_FILE,"service_connect_establish:connect_netio_service failed\n");
        return -1;			
 	}
-	// if(accept_gamelog_service_connect(nl) == -1)
-	// {
- //       fprintf(ERR_FILE,"service_connect_establish:connect game_logic service failed\n");
- //       return -1;			
-	// }
+	if(accept_gamelog_service_connect(nl) == -1)
+	{
+       fprintf(ERR_FILE,"service_connect_establish:connect game_logic service failed\n");
+       return -1;			
+	}
 	return 0;
 }
 
@@ -723,7 +732,7 @@ net_logic_start* net_logic_start_creat(queue* que_pool)
 	start->netio_port = 8000;
 
 	start->netlog_addr = "127.0.0.1";
-	start->netlog_port = 8009;
+	start->netlog_port = 8001;
 
 	return start;
 }
@@ -737,25 +746,25 @@ void* net_logic_service_loop(void* arg)
        fprintf(ERR_FILE,"net_logic_service_loop:connect_netio_service disconnect\n");
        return NULL;		
 	}
-	// if(netlogic_lisen_creat(nt) == -1)
-	// {
- //       fprintf(ERR_FILE,"net_logic_service_loop:netlogic_lisen_creat\n");
- //       return NULL;			
-	// }
+	if(netlogic_lisen_creat(nt) == -1)
+	{
+       fprintf(ERR_FILE,"net_logic_service_loop:netlogic_lisen_creat\n");
+       return NULL;			
+	}
 	if(service_connect_establish(start,nt) == -1)
 	{
        fprintf(ERR_FILE,"net_logic_service_loop:service_connect_establish failed\n");
        return NULL;			
 	}
 	int type = 0;
-
+	printf("net_logic_service_loop running!\n");
 	for( ; ; )
 	{
 		type = net_logic_event(nt);
 		switch(type)
 		{
 			case EVENT_TYPE_QUE_NULL:
-				printf("queue is null\n");
+				printf("netlogic:queue is null\n");
 				break;
 
 			case EVENT_THREAD_CONNECT_ERR:

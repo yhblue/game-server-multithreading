@@ -689,6 +689,7 @@ static void socket_server_release(struct socket_server *ss)
 		close(s->fd);
 	}
 	epoll_release(ss->epoll_fd);	
+
 	free(ss->socket_pool);
 	free(ss->event_pool);
 	free(ss);
@@ -763,7 +764,7 @@ static int wait_netlogic_service_connect(struct socket_server* ss)
 		{
 			int port = ntohs(addr.sin_port);  //客户端的端口
 			printf("netio dispatch accept,port = %d\n",port);
-			if(port == PORT_NETLOGIC_SERVICE) //必须是这个端口
+			if(port == PORT_NETLOG_2_NETIO_SERVICE) //必须是这个端口
 			{
 				int id = apply_id();
 				struct socket* s = apply_socket(ss,socket,id,true);
@@ -802,7 +803,7 @@ void* network_io_service_loop(void* arg)
 	char* address = start->address; 
 	int port = start->port;  		
 	int listen_id = socket_server_listen(ss,address,port,MAX_BACK_LOG);
-//	printf("listen_id = %d\n",listen_id);
+
 	if(listen_id == -1)
 	{
 		fprintf(ERR_FILE,"network_io_service_loop: socket_server_listen failed\n");
@@ -819,7 +820,7 @@ void* network_io_service_loop(void* arg)
 	struct socket_message result;
 	q_node* qnode = NULL;
 	int type = 0;
-	printf("netio service start!\n");
+	printf("network_io_service_loop running!\n");
 	for ( ; ; )
 	{
 		type = socket_server_event(ss,&result);
