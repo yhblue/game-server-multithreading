@@ -193,7 +193,7 @@ static int game_logic_event(game_logic* gl)
 		if(have_event(gl) == true)
 		{
 			gl->check_que = true;
-			printf("game:select change,port = %d\n",);
+			printf("game:select change,port = %d\n",gl->service_port);
 			if(dispose_socket_event(gl) == -1)
 			{
 				fprintf(ERR_FILE,"game_logic_event: dispose_socket_event error\n");

@@ -79,7 +79,7 @@ typedef struct _imform2_game
 
 typedef struct _router
 {
-	unsigned char sock_id2game_logic[MAX_SOCKET];			//用户socket id 到 游戏逻辑服务的id 0-3
+	char sock_id2game_logic[MAX_SOCKET];			//用户socket id 到 游戏逻辑服务的id 0-3
 	int online_player[GAME_LOGIC_SERVICE_NUM];  			//记录每个游戏服务的人数 
 	queue* que_2_gamelogic[GAME_LOGIC_SERVICE_NUM]; 		//net logic 服务到 game logic服务各自的消息队列
 	int gamelog_socket[GAME_LOGIC_SERVICE_NUM];             //与game_logic 服务通信的socket
@@ -132,33 +132,71 @@ uint8_t route_distribute_gamelogic(net_logic* nl)
 	int gamelogic03_player = nl->route.online_player[GAME_LOGIC_SERVER_THIRD];
 	int gamelogic04_player = nl->route.online_player[GAME_LOGIC_SERVER_FOURTH];
 
-	uint8_t id1 = (gamelogic01_player >= gamelogic02_player)? GAME_LOGIC_SERVER_FIRST:GAME_LOGIC_SERVER_SECOND;
-	uint8_t id2 = (gamelogic03_player >= gamelogic04_player)? GAME_LOGIC_SERVER_THIRD:GAME_LOGIC_SERVER_FOURTH;
+	uint8_t id1 = (gamelogic01_player < gamelogic02_player)? GAME_LOGIC_SERVER_FIRST:GAME_LOGIC_SERVER_SECOND;
+	uint8_t id2 = (gamelogic03_player < gamelogic04_player)? GAME_LOGIC_SERVER_THIRD:GAME_LOGIC_SERVER_FOURTH;
 
-	uint8_t ret = (nl->route.online_player[id1] >= nl->route.online_player[id2])? id1 : id2;
+	uint8_t ret = (nl->route.online_player[id1] < nl->route.online_player[id2])? id1 : id2;
 
 	return ret;
 }
 
-static uint8_t route_get_gamelogic_id(net_logic* nl,int socket_id)
+//SOCKET_SUCCESS
+static int route_set_gamelogic_id(net_logic* nl,int socket_id)
 {
 	if(nl->route.sock_id2game_logic[socket_id] == PLAYER_TYPE_INVALID) //新的客户端
 	{
 		nl->route.game_service_id = route_distribute_gamelogic(nl);    //分配游戏服务来处理
 		nl->route.sock_id2game_logic[socket_id] = nl->route.game_service_id; 
 		nl->route.online_player[nl->route.game_service_id] ++;
+		printf("~~~~ socket is invalid,nl->route.game_service_id = %d ~~~~~\n",nl->route.game_service_id);
+		return 0;
 	}
 	else
 	{
-		nl->route.game_service_id = nl->route.sock_id2game_logic[socket_id];
-	}
-	return game_service_id;
+		fprintf(ERR_FILE,"route_set_gamelogic_id: this player was used\n");
+		return -1;		
+	}	
+	return 0;
 }
 
-static queue* route_get_msg_que(net_logic* nl,int socket_id)
+//SOCKET_CLOSE
+static int route_clear_gamelogic_id(net_logic* nl,int socket_id)
 {
-	route_get_gamelogic_id(nl,socket_id);
-	return nl->route.que_2_gamelogic[nl->route.game_service_id];
+	if(nl->route.sock_id2game_logic[socket_id] == PLAYER_TYPE_INVALID)
+	{
+		fprintf(ERR_FILE,"route_clear_gamelogic_id: a error socket_id\n");
+		return -1;			
+	}
+	else
+	{
+		nl->route.sock_id2game_logic[socket_id] = PLAYER_TYPE_INVALID;
+		nl->route.online_player[nl->route.game_service_id] --;
+	}
+	return 0;
+}
+
+static int route_get_gamelogic_id(net_logic* nl,int socket_id)
+{
+	if(nl->route.sock_id2game_logic[socket_id] != PLAYER_TYPE_INVALID)
+	{
+		nl->route.game_service_id = nl->route.sock_id2game_logic[socket_id];
+		return 0;
+	}
+	else
+	{
+		fprintf(ERR_FILE,"route_get_gamelogic_id: PLAYER_TYPE_INVALID\n");
+		return -1;			
+	}
+	return -1;
+}
+
+static inline 
+queue* route_get_msg_que(net_logic* nl,int socket_id)
+{
+	if(route_get_gamelogic_id(nl,socket_id) == 0)
+		return nl->route.que_2_gamelogic[nl->route.game_service_id];
+	else
+		return NULL;
 }
 
 static inline 
@@ -268,63 +306,18 @@ static net_logic* net_logic_creat(net_logic_start* start)
 	return nt;
 }
 
-
-
-//测试 client -> netio -> net_logic 打印反序列化之后的数据 
-void send_data_test(net_logic* nl,queue* que,q_node* qnode)
-{	
-	if(qnode == NULL)
-	{
-		fprintf(ERR_FILE,"send_data_test:qnode is null\n");
-		return ;		
-	}
-	printf("send_data_test command\n");
-	char msg_type = qnode->msg_type;
-	printf("msg_type = %c",msg_type);
-	char proto_type = qnode->proto_type;
-	printf("proto_type = %c",proto_type);
-	unsigned char* buffer = qnode->buffer;
-
-	switch(proto_type)
-	{
-		case LOG_REQ:
-
-			break;		
-
-		case HERO_MSG_REQ:
-			{
-				HeroMsg* msg = (HeroMsg*)buffer;
-				printf("type is HeroMsg,msg->uid = %d,msg->point_x = %d,msg->point_y = %d\n",msg->uid,msg->point_x,msg->point_y);
-				break;	
-			}
-			
-		case CONNECT_REQ:
-
-			break;				
-
-		case HEART_REQ:
-
-			break;			
-	}
-	for(int i=0;i<4;i++)
-	{
-		int socket = nl->route.gamelog_socket[i];
-		char* buf = "DATA";
-		int n = write(socket,buf,strlen(buf));
-		if(n == strlen(buf))
-		{
-			printf("send data success\n");
-		}
-	}
-	
-}
-
 static int send_msg_2_game_logic(net_logic* nl,q_node* qnode,int uid) //socket_id
 {
 	queue* que = route_get_msg_que(nl,uid);
+	if(que == NULL)
+	{
+		fprintf(ERR_FILE,"send_msg_2_game_logic:a null queue\n");
+		return -1;			
+	}
 	queue_push(que,qnode);
 	int socket = route_get_msg_socket(nl,uid);
-	if(send_msg2_service() == -1)
+	//printf("netlogic send data to game\n");
+	if(send_msg2_service(socket) == -1)
 	{
 		fprintf(ERR_FILE,"send_msg_2_game_logic:send_msg2_service failed\n");
 		return -1;		
@@ -377,7 +370,7 @@ static int dispose_netio_service_que(net_logic* nl,queue* que,q_node* qnode)
 	int uid = qnode->uid;
 	unsigned char* data = qnode->buffer;
 	int content_len = qnode->len; 		//内容的长度(即客户端原始发送上来的数据的长度)	
-
+	printf("-----dispose_netio_service_que,type = %c -------\n",type);
 	switch(type)
 	{
 		case TYPE_DATA:     			// 'D' 
@@ -390,9 +383,18 @@ static int dispose_netio_service_que(net_logic* nl,queue* que,q_node* qnode)
 		}
 
 		case TYPE_CLOSE:    			// 'C'
+		{
+			route_clear_gamelogic_id(nl,uid);  //清空路由表对应的socket位置
+			q_node* send_qnode = pack_inform_data(uid,type); 
+			send_msg_2_game_logic(nl,send_qnode,uid);
+			break;
+		}
+		
 		case TYPE_SUCCESS:  			// 'S' 
 		{
-			q_node* send_qnode = pack_inform_data(content_len,uid,type); 
+			printf("^^^^^^netlogic type = TYPE_SUCCESS ^^^^^^^^^^^\n");
+			route_set_gamelogic_id(nl,uid);
+			q_node* send_qnode = pack_inform_data(uid,type); 
 			send_msg_2_game_logic(nl,send_qnode,uid);
 			break;				
 		}
@@ -426,18 +428,18 @@ static int dispose_queue_event(net_logic* nl)
 			case SERVICE_TYPE_CHAT:
 				break;	
 		}
+
+		if(qnode != NULL)
+			free(qnode);		
 	}
-	if(qnode != NULL)
-		free(qnode);
 	return 0;
 }
 
 static int dispose_threading_read_msg(net_logic* nt,service* sv)
 {
-	char buf[64];
+	char buf[64] = {0};
 	int n = read(sv->sock_fd,buf,sizeof(buf));  //写到了这里接着写下去
 	buf[n] = '\0';
-	//printf("%s\n",buf);
 	if(n < 0)
 	{
 		switch(errno)
@@ -458,6 +460,7 @@ static int dispose_threading_read_msg(net_logic* nt,service* sv)
 		close(sv->sock_fd);
 		return EVENT_THREAD_DISCONNECT;
 	}	
+	printf("netlogic read:%s\n",buf);
 	return 0;
 }
 
@@ -504,7 +507,7 @@ static int net_logic_event(net_logic *nt)
 				if(eve->read)
 				{
 					int type = dispose_threading_read_msg(nt,sv);
-					printf("netlogic epoll work\n");
+					printf("type = SERVICE_TYPE_NET_IO,netlogic epoll work\n");
 					return type;
 				}
 				break;
@@ -517,7 +520,7 @@ static int net_logic_event(net_logic *nt)
 				if(eve->read)
 				{
 					int type = dispose_threading_read_msg(nt,sv);
-					printf("netlogic epoll work\n");
+					printf("type = SERVICE_TYPE_GAME_LOGIC,netlogic epoll work\n");
 					return type;
 				}
 				if(eve->write)
@@ -779,7 +782,7 @@ void* net_logic_service_loop(void* arg)
        return NULL;			
 	}
 	int type = 0;
-	printf("net_logic_service_loop running!\n");
+	printf("~~~~~~~~~~net_logic_service_loop running!~~~~~~~~~~~~~\n");
 	for( ; ; )
 	{
 		type = net_logic_event(nt);
@@ -800,15 +803,6 @@ void* net_logic_service_loop(void* arg)
 	}
 	return NULL;
 }
-
-
-
-
-
-
-
-
-
 
 
 
@@ -863,6 +857,56 @@ static process* apply_process(net_logic* nt,int socket_fd,int p_id,bool add_epol
 		return NULL;			
 	}
 	memset(nt->sock_id_2_threadsock_fd,0,size);
+
+
+//测试 client -> netio -> net_logic 打印反序列化之后的数据 
+void send_data_test(net_logic* nl,queue* que,q_node* qnode)
+{	
+	if(qnode == NULL)
+	{
+		fprintf(ERR_FILE,"send_data_test:qnode is null\n");
+		return ;		
+	}
+	printf("send_data_test command\n");
+	char msg_type = qnode->msg_type;
+	printf("msg_type = %c",msg_type);
+	char proto_type = qnode->proto_type;
+	printf("proto_type = %c",proto_type);
+	unsigned char* buffer = qnode->buffer;
+
+	switch(proto_type)
+	{
+		case LOG_REQ:
+
+			break;		
+
+		case HERO_MSG_REQ:
+			{
+				HeroMsg* msg = (HeroMsg*)buffer;
+				printf("type is HeroMsg,msg->uid = %d,msg->point_x = %d,msg->point_y = %d\n",msg->uid,msg->point_x,msg->point_y);
+				break;	
+			}
+			
+		case CONNECT_REQ:
+
+			break;				
+
+		case HEART_REQ:
+
+			break;			
+	}
+	for(int i=0;i<4;i++)
+	{
+		int socket = nl->route.gamelog_socket[i];
+		char* buf = "DATA";
+		int n = write(socket,buf,strlen(buf));
+		if(n == strlen(buf))
+		{
+			printf("send data success\n");
+		}
+	}
+	
+}
 
 
  */

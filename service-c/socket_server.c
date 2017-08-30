@@ -567,6 +567,33 @@ static int dispose_queue_event(struct socket_server *ss)
 	return -1;
 }
 
+static int socket_server_start(struct socket_server *ss,int id)
+{
+	struct socket *s = &ss->socket_pool[id % MAX_SOCKET];  
+
+	if(s == NULL)
+	{
+		return SOCKET_ERROR;
+	}
+	if(s->type == SOCKET_TYPE_INVALID) 
+	{
+		return SOCKET_ERROR;
+	}
+	if (s->type == SOCKET_TYPE_CONNECT_NOTADD || s->type == SOCKET_TYPE_LISTEN_NOTADD) 
+	{
+		if(epoll_add(ss->epoll_fd,s->fd,s) == -1)
+		{
+			s->type = SOCKET_TYPE_INVALID;
+			return SOCKET_ERROR;
+		}
+		s->type = (s->type == SOCKET_TYPE_CONNECT_NOTADD) ? SOCKET_TYPE_CONNECT_ADD : SOCKET_TYPE_LISTEN_ADD;//change
+
+		return SOCKET_SUCCESS;	//成功加入到 epoll 中管理。
+	}
+	return SOCKET_ERROR;
+}
+
+
 static int socket_server_event(struct socket_server *ss, struct socket_message * result)
 {
 	for( ; ; )
@@ -611,8 +638,10 @@ static int socket_server_event(struct socket_server *ss, struct socket_message *
 			case SOCKET_TYPE_LISTEN_ADD: //client connect
 				if(dispose_accept(ss,s,result) == 0)
 				{
-					printf("accept\n");
-					return SOCKET_ACCEPT;			
+					// printf("accept\n");
+					// return SOCKET_ACCEPT;	
+					printf("accept[id=%d] from [id=%d]\n",result->id,result->lid_size);
+					return socket_server_start(ss,result->id); 
 				}
 				break;
 
@@ -642,32 +671,6 @@ static int socket_server_event(struct socket_server *ss, struct socket_message *
 				break;
 		}
 	}
-}
-
-static int socket_server_start(struct socket_server *ss,int id)
-{
-	struct socket *s = &ss->socket_pool[id % MAX_SOCKET];  
-
-	if(s == NULL)
-	{
-		return SOCKET_ERROR;
-	}
-	if(s->type == SOCKET_TYPE_INVALID) 
-	{
-		return SOCKET_ERROR;
-	}
-	if (s->type == SOCKET_TYPE_CONNECT_NOTADD || s->type == SOCKET_TYPE_LISTEN_NOTADD) 
-	{
-		if(epoll_add(ss->epoll_fd,s->fd,s) == -1)
-		{
-			s->type = SOCKET_TYPE_INVALID;
-			return SOCKET_ERROR;
-		}
-		s->type = (s->type == SOCKET_TYPE_CONNECT_NOTADD) ? SOCKET_TYPE_CONNECT_ADD : SOCKET_TYPE_LISTEN_ADD;//change
-
-		return SOCKET_SUCCESS;	//成功加入到 epoll 中管理。
-	}
-	return SOCKET_ERROR;
 }
 
 
@@ -705,7 +708,7 @@ static q_node* dispose_event_result(struct socket_server* ss,struct socket_messa
 	{
 		case SOCKET_DATA:
 			qnode = set_qnode(buf,TYPE_DATA,0,uid,len,NULL);
-			printf("set_qnode command!\n");
+			printf("netio push data to queue\n");
 			break;
 
 		case SOCKET_CLOSE:
@@ -729,6 +732,8 @@ static void send_client_msg2net_logic(struct socket_server* ss,q_node* qnode)
 	queue_push(ss->io2netlogic_que,qnode); //封装成一个send函数
 
 	int socket = (ss->socket_netlog)->fd;
+	printf("netio2netlogic socket = %d\n",socket);
+	printf("netio push data to netlogic and send socket\n");
 	send_msg2_service(socket);			   //发送通知给 net_logic service
 }
 
@@ -765,6 +770,7 @@ static int wait_netlogic_service_connect(struct socket_server* ss)
 			printf("netio dispatch accept,port = %d\n",port);
 			if(port == PORT_NETLOG_2_NETIO_SERVICE) //必须是这个端口
 			{
+				printf("netio accept netlogic socket is = %d\n",socket);
 				socket_keepalive(socket);
 				if(set_nonblock(socket) == -1)
 				{
@@ -781,7 +787,7 @@ static int wait_netlogic_service_connect(struct socket_server* ss)
 				s->type = SOCKET_TYPE_NETLOGIC;//标记为与网络逻辑线程通信的socket
 				ss->socket_netlog = s;		   //与netlogic通信的socket，记录下来
 
-				printf("net_logic service connect!\n");	
+				printf("netio:accept net_logic service connect!\n");	
 				return 0;
 			}
 			else
@@ -824,7 +830,7 @@ void* network_io_service_loop(void* arg)
 	struct socket_message result;
 	q_node* qnode = NULL;
 	int type = 0;
-	printf("network_io_service_loop running!\n");
+	printf("~~~~~~~~network_io_service_loop running!~~~~~~~~~\n");
 	for ( ; ; )
 	{
 		type = socket_server_event(ss,&result);
@@ -834,8 +840,9 @@ void* network_io_service_loop(void* arg)
 				goto _EXIT;
 				
 			case SOCKET_ACCEPT://client connect
-				printf("accept[id=%d] from [id=%d]\n",result.id,result.lid_size);
-				socket_server_start(ss,result.id);  	//add to epoll
+				// printf("accept[id=%d] from [id=%d]\n",result.id,result.lid_size);
+				// socket_server_start(ss,result.id);  	//add to epoll
+				printf("SOCKET_ACCEPT accept \n");
 				break;
 
 			case SOCKET_DATA:
