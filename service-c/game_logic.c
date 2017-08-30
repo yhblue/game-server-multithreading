@@ -128,9 +128,7 @@ static game_logic* game_logic_creat(game_logic_start* start)
 
 static bool have_event(game_logic* gl)
 {
-	
     FD_SET(gl->sock_2_net_logic,&gl->select_set);
-//    struct timeval tv = {0,0};
     int ret = select(gl->sock_2_net_logic+1,&gl->select_set,NULL,NULL,NULL);    
 	if (ret == 1) 
 	{

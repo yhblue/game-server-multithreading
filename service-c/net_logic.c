@@ -21,7 +21,6 @@
 #include <assert.h>
 #include <string.h>
 
-#define MAX_SERVICE      			8
 #define NET_LOGIC_MAX_EVENT  	   10
 #define GAME_THREADING_NUM      	4
 
@@ -375,6 +374,7 @@ static int dispose_netio_service_que(net_logic* nl,queue* que,q_node* qnode)
 	{
 		case TYPE_DATA:     			// 'D' 
 		{
+			printf("^^^^^^netlogic type = TYPE_DATA ^^^^^^^^^^^\n");
 			deserialize* deseria_data = unpack_user_data(data,content_len);    	//upack
 			q_node* send_qnode = pack_user_data(deseria_data,uid,type);        	//pack
 			send_msg_2_game_logic(nl,send_qnode,uid);							//send
@@ -384,6 +384,7 @@ static int dispose_netio_service_que(net_logic* nl,queue* que,q_node* qnode)
 
 		case TYPE_CLOSE:    			// 'C'
 		{
+			printf("^^^^^^netlogic type = TYPE_CLOSE ^^^^^^^^^^^\n");
 			route_clear_gamelogic_id(nl,uid);  //清空路由表对应的socket位置
 			q_node* send_qnode = pack_inform_data(uid,type); 
 			send_msg_2_game_logic(nl,send_qnode,uid);
@@ -803,6 +804,8 @@ void* net_logic_service_loop(void* arg)
 	}
 	return NULL;
 }
+
+
 
 
 
