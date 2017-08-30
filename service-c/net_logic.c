@@ -102,7 +102,9 @@ typedef struct _net_logic
 	int listen_fd;
 	char* serv_addr;
 	int serv_port;
-}net_logic;
+	bool socket_send;						//为 true 才会向另一个服务发送一个字节的信息，唤醒对方，然后立刻
+											//修改为false,只有当对方服务进入了休眠状态，在进入之前发送一个字节给
+}net_logic;									//自己，告诉它已经进入休眠，修改为true
 
 typedef struct _deserialize
 {
@@ -425,6 +427,8 @@ static int dispose_queue_event(net_logic* nl)
 				break;	
 		}
 	}
+	if(qnode != NULL)
+		free(qnode);
 	return 0;
 }
 
