@@ -17,11 +17,19 @@ typedef struct _player_id
 	uint8_t map_playerid;  			//记录这个用户在mapid上的这个地图的玩家的id 0-9
 }player_id;
 
+typedef struct 
+{
+	int broadcast_player_num;		//要广播的玩家数目
+	int *uid_list;					//要广播的 uid 列表
+	void * buffer;				  	//要发送的数据
+};
+
 typedef struct _game_router
 {
 	int player_num;               	 //这个进程里面的游戏总人数
 	int map_player_num[MAX_MAP];  	 //每个地图里面的玩家数目
 	player_id* uid_2_playid;		 //MAX_SOCKET个成员
+	int map_player_uid[MAX_MAP];	 //存储这个地图中的用户 uid MAX_PLAYER_EACH_MAP;
 }game_router;
 
 typedef struct _game_logic_start
@@ -36,8 +44,8 @@ typedef struct _game_logic_start
 	int game_service_id;
 }game_logic_start;
 
-game_logic_start* game_logic_start_creat(queue* que_pool,game_router* route,int service_id,char* netlog_addr,int netlog_port,int serv_port,int game_service_id);
 
+game_logic_start* game_logic_start_creat(queue* que_pool,game_router* route,int service_id,char* netlog_addr,int netlog_port,int serv_port,int game_service_id);
 void* game_logic_service_loop(void* arg);
 
 #endif
