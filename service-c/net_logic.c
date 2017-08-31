@@ -406,8 +406,7 @@ static int dispose_netio_service_que(net_logic* nl,queue* que,q_node* qnode)
 static int dispose_queue_event(net_logic* nl)
 {
 	int service_type = nl->current_serice->type;
-	queue* que = nl->current_que;
-	q_node* qnode = queue_pop(que);
+	q_node* qnode = queue_pop(nl->current_que);
 	if(qnode == NULL) //队列无数据
 	{
 		return -1;

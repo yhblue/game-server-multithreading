@@ -18,12 +18,14 @@
 #include <arpa/inet.h>
 //http://www.cnblogs.com/purpleraintear/p/6160733.html
 
-//一个游戏逻辑线程最大支持20*10个玩家在线
-#define MAX_MAP    						20
-#define MAX_PLAYER_EACH_MAP  			10
+
 
 #define GAME_LOG_EVENT_QUE_NULL          1
 #define GAME_LOG_EVENT_SOCKET_CLOSE      2
+
+#define STATE_TYPE_INVALID   			 0
+#define STATE_TYPE_USING				 1	
+
 
 typedef struct _player_msg
 {
@@ -57,44 +59,72 @@ typedef struct _map_msg
 //id和map_player怎么对应上
 typedef struct _game_logic
 {
-	int player_num;               	 //这个进程里面的游戏总人数
-	int map_player_num[MAX_MAP];  	 //每个地图里面的玩家数目
 	int sock_2_net_logic;         	 //通信的socket
 	queue* que_2_net_logic;		  	 //通信的消息队列
+	queue* service_que;				 //本服务的消息队列
 	player* map_player[MAX_MAP];  	 //map_player 是一个指向 sizeof(player) * MAX_PLAYER_EACH_MAP 的头指针
 	game_router* route;				 //路由表
-	char* netlog_addr;
+	char* netlog_addr;				 
 	int netlog_port;
 	int service_port;
 	fd_set select_set;
 	bool check_que;
 	int serv_port;
+	int game_service_id;			 //记录是第几个游戏逻辑处理服务
 }game_logic;
 
 
-game_router* game_route_table_creat()
+static void game_route_table_creat(game_logic* gl)
 {
-	game_router* route = (game_router*)malloc(sizeof(game_router)*MAX_SOCKET);
-	if(route == NULL)
+	gl->route->uid_2_playid = (player_id*)malloc(sizeof(player_id) * MAX_SOCKET);
+	if(gl->route->uid_2_playid == NULL)
 	{
 		fprintf(ERR_FILE,"net_logic_creat:route malloc failed\n");
-		return NULL;		
+		return -1;    			
 	}
-	return route;
+	for(int i=0; i<MAX_SOCKET; i++)
+	{
+		gl->route->uid_2_playid[i].state = STATE_TYPE_INVALID;
+		gl->route->uid_2_playid[i].mapid = 0;
+		gl->route->uid_2_playid[i].map_playerid = 0;
+	}	
 }
 
 
-game_logic_start* game_logic_start_creat(queue* que_pool,game_router* route,int service_id,char* netlog_addr,int netlog_port,int serv_port)
+game_logic_start* game_logic_start_creat(queue* que_pool,game_router* route,int service_id,char* netlog_addr,int netlog_port,int serv_port，int game_service_id)
 {
 	game_logic_start* start = (game_logic_start*)malloc(sizeof(game_logic_start));
+	start->que_pool = que_pool;
 	start->que_2_net_logic = &que_pool[QUE_ID_GAMELOGIC_2_NETLOGIC];
 	start->service_id = service_id;
 	start->service_port = serv_port;
 	start->netlog_addr = netlog_addr;
 	start->netlog_port = netlog_port;
 	start->route = route;
-
+	start->game_service_id = game_service_id;
 	return start;
+}
+
+static queue* distribute_game_service_que(game_logic* gl,game_logic_start* start)
+{
+	int game_service_id = gl->game_service_id;
+	queue* que = NULL;
+	switch(game_service_id)
+	{
+		case GAME_LOGIC_SERVER_FIRST:
+			que = &(start->que_pool[QUE_ID_NETLOGIC_2_GAME_FIRST]);
+			break;
+		case GAME_LOGIC_SERVER_SECOND:
+			que = &(start->que_pool[QUE_ID_NETLOGIC_2_GAME_SECOND]);
+			break;
+		case GAME_LOGIC_SERVER_THIRD:
+			que = &(start->que_pool[QUE_ID_NETLOGIC_2_GAME_THIRD]);
+			break;
+		case GAME_LOGIC_SERVER_FOURTH:
+			que = &(start->que_pool[QUE_ID_NETLOGIC_2_GAME_FOURTH]);
+			break;
+	}
+	return que;
 }
 
 static game_logic* game_logic_creat(game_logic_start* start)
@@ -113,6 +143,7 @@ static game_logic* game_logic_creat(game_logic_start* start)
 	gl->netlog_addr = start->netlog_addr;
 	gl->netlog_port = start->netlog_port;
 	gl->service_port = start->service_port;
+	gl->game_service_id = start->game_service_id;
 
 	printf("game logic message\n");
 	printf("gl->netlog_addr = %s\n",gl->netlog_addr);
@@ -120,7 +151,8 @@ static game_logic* game_logic_creat(game_logic_start* start)
 	printf("game_logic_creat:gl->service_port = %d\n",gl->service_port);
 
 	gl->check_que = false;
-
+	gl->service_que = distribute_game_service_que(gl,start);
+	game_route_table_creat(gl);
 	FD_ZERO(&gl->select_set); 
 
 	return gl;
@@ -137,9 +169,90 @@ static bool have_event(game_logic* gl)
 	return false;    
 }
 
+gl->route->uid_2_playid[i].state = STATE_TYPE_INVALID;
+gl->route->uid_2_playid[i].mapid = 0;
+gl->route->uid_2_playid[i].map_playerid = 0;
+
+
+static int game_route_get_mapid(game_logic* gl,int uid)
+{
+	if(gl->player_num >= MAX_GAME_SERVICE_PLAYER_NUM)
+	{
+		return -1; //这个游戏处理服务人数已经满了
+	}
+	for(uint8_t i=0; i<MAX_MAP; i++)
+	{
+		if(gl->map_player_num[i] < MAX_PLAYER_EACH_MAP)
+		{
+			return i;
+		}
+	}
+	return -1;//全部满了
+}
+
+static int game_route_get_playerid_in_map(game_logic* gl,int mapid)
+{
+	if(gl->)
+}
+
+
+static uint8_t game_route_get_map_playerid(int uid)
+{
+
+}
+
+static void game_route_append(game_logic* gl,int uid)
+{
+	if(gl->route->uid_2_playid[uid].state == STATE_TYPE_INVALID) //可用的成员空间
+	{
+		
+		
+		if(id == -1)
+		{
+			fprintf(ERR_FILE,"game_route_append:game service = %d is player number error\n",gl->game_service_id);
+			return -1;
+		}
+		else
+		{
+			gl->route->uid_2_playid[uid].state = STATE_TYPE_USING;
+			int id = game_route_get_mapid(gl,uid);
+			gl->route->uid_2_playid[uid].
+		}
+	}
+}
+
+static void game_route_del(game_logic* gl,int uid)
+{
+	if()
+}
+
+
+
+//SUCCESS命令-创建路由表中玩家成员
+//CLOSE      -删除成员
+//DATA		 -找到该玩家信息，对信息进行更新
 static int dispose_queue_event(game_logic* gl)
 {
 	printf("game_logic port = %d dispose queue message\n",gl->service_port);
+	q_node* qnode = queue_pop(gl->service_que);
+	if(qnode == NULL) //队列无数据
+	{
+
+		return -1;
+	}
+	else
+	{
+		int type = qnode->msg_type;
+		switch(type):
+		{
+			case TYPE_DATA:
+				break;
+			case TYPE_CLOSE:
+				break;
+			case TYPE_SUCCESS:
+				break;
+		} 
+	}	
 	return -1;
 }
 

@@ -1,3 +1,4 @@
+#if 0
 #include "game_logic_io.h"
 #include "lock_queue.h"
 
@@ -163,3 +164,5 @@ static int dispose_log2io_que_event(game_logic_io* gli)
 {
 
 }
+
+#endif

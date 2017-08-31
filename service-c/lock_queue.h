@@ -15,11 +15,11 @@
 
 typedef struct node 
 {  
-	char msg_type;
+	char msg_type;			 //'D' 'S' 'C'
     char proto_type;         //for client data ,is serilia type,for inform is 
-    int uid;  	        	//socket uid
-    int len;	    		//for data is buffer length,for other is 0
-    void* buffer;       	//for data is data_buffer,for other is NULL
+    int uid;  	        	 //socket uid
+    int len;	    		 //for data is buffer length,for other is 0
+    void* buffer;       	 //for data is data_buffer,for other is NULL
     struct node* next;  
 }q_node;
   
