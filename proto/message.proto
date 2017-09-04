@@ -22,7 +22,6 @@ message Login_rsp{
 	required int32 point_x = 2;
 	required int32 point_y = 3;	
 	required int32 enemy_num = 4;
-	required int32 uid = 5;	
 }
 
 
@@ -42,6 +41,7 @@ message New_enemy{
 	required int32 point_y = 3;		
 }
 
-message Game_start{
 
+message Game_start{
+	required bool start = 1;
 }

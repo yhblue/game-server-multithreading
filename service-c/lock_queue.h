@@ -11,7 +11,20 @@
 #define TYPE_SUCCESS  'S'   //新客户端完全登陆成功
 
 
-#define SIZEOF_QNODE  32   //消息队列的节点32字节
+typedef struct _head
+{
+	char msg_type;			 //'D' 'S' 'C'
+    char proto_type;         //for client data ,is serilia type,for inform is 
+    int uid;  	        	 //socket uid
+    int len;	    		 //for data is buffer length,for other is 0	
+}head;
+
+typedef struct node 
+{  
+	void* msg_head;			 //改成void*类型更具有通用性了
+    void* buffer;       	 //for data is data_buffer,for other is NULL
+    struct node* next;  
+}q_node;
 
 typedef struct node 
 {  

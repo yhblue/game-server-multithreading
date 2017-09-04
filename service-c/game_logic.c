@@ -26,6 +26,10 @@
 #define STATE_TYPE_INVALID   			 0
 #define STATE_TYPE_USING				 1	
 
+#define PLAYER_UID_NULL			        -1
+#define	MAP_PLAYER_STATE_unchanged		 0
+#define	MAP_PLAYER_STATE_CHANGEED		 1		
+
 #define START_POSITION_X				 0
 #define START_POSITION_Y				 0
 #define START_SPEED						 1
@@ -95,11 +99,25 @@ static void game_route_table_creat(game_logic* gl)
 		gl->route->uid_2_playid[i].state = STATE_TYPE_INVALID;
 		gl->route->uid_2_playid[i].mapid = 0;
 		gl->route->uid_2_playid[i].map_playerid = 0;
-	}	
+	}
 	gl->route->player_num = 0;
 	for(int i=0; i<MAX_MAP; i++)
 	{
 		gl->route->map_player_num[i] = 0;
+	}
+	int mapid = 0;
+	for(mapid=0; mapid<MAX_MAP; mapid++)
+	{
+		gl->route->map_player_socket_uid[mapid] = (int*)malloc(sizeof(int) * MAX_PLAYER_EACH_MAP);
+		if(gl->route->map_player_socket_uid[mapid] == NULL)
+		{
+			fprintf(ERR_FILE,"game_logic_creat:game service = %d gl->map_player_uid malloc error\n",gl->game_service_id);
+			return -1;				
+		}
+		for(int i=0; i<MAX_PLAYER_EACH_MAP; i++)
+		{
+			gl->route->map_player_socket_uid[mapid][i] = PLAYER_UID_NULL;
+		}
 	}
 }
 
@@ -156,6 +174,7 @@ static game_logic* game_logic_creat(game_logic_start* start)
 		{
 			gl->map_player[mapid][i].state = STATE_TYPE_INVALID;
 		}
+
 	}
 	for(int i=0; i<MAX_MAP; i++)
 	{
@@ -252,19 +271,29 @@ static int game_route_append(game_logic* gl,int uid)
 			}
 			else	//设置路由成员的所有参数
 			{
-				gl->route->uid_2_playid[uid].state = STATE_TYPE_USING;
-				gl->route->uid_2_playid[uid].mapid = map_id;
-				gl->route->uid_2_playid[uid].map_playerid = id_in_map;
-				gl->route->map_player_num[map_id] ++; //这个map中人数自增
-				gl->route->player_num ++;			  //游戏逻辑服人数自增
-				return 0;
+				if(gl->route->map_player_socket_uid[map_id][id_in_map] == PLAYER_UID_NULL) //socket uid的这个成员空
+				{
+					gl->route->uid_2_playid[uid].state = STATE_TYPE_USING;
+					gl->route->uid_2_playid[uid].mapid = map_id;
+					gl->route->uid_2_playid[uid].map_playerid = id_in_map;
+					gl->route->map_player_socket_uid[map_id][id_in_map] = uid; //记录这个uid，用于广播
+					//gl->route->map_player_num[map_id] ++; 					   //这个map中人数自增
+				    gl->route->player_num ++;			                       //游戏逻辑服人数自增		
+					// 当游戏开始时候才更新地图中玩家数目,但是让 gl->route->player_num 先增加，标记这个游戏逻辑服人数已经增加
+					return 0;			
+				}
+				else
+				{
+					fprintf(ERR_FILE,"game_route_append:game service = %d map_player_socket_uid error\n",gl->game_service_id);
+					return -1;	
+				}
 			}
 		}
 	}
 	return -1;
 }
 
-static void game_route_del(game_logic* gl,int uid)
+static int game_route_del(game_logic* gl,int uid)
 {
 	if(gl->route->uid_2_playid[uid].state == STATE_TYPE_USING)
 	{
@@ -273,8 +302,18 @@ static void game_route_del(game_logic* gl,int uid)
 		int map_playerid = gl->route->uid_2_playid[uid].map_playerid;
 		gl->route->map_player_num[map_id] --; 							 
 		gl->route->player_num --;			  							 
+		if(gl->route->map_player_socket_uid[map_id][map_playerid] == uid)
+		{
+			gl->route->map_player_socket_uid[map_id][map_playerid] = PLAYER_UID_NULL;
+		}
+		else
+		{
+			fprintf(ERR_FILE,"game_route_del:game service = %d map_player_socket_uid error\n",gl->game_service_id);
+			return -1;				
+		}
 
 		gl->map_player[mapid][map_playerid].state = STATE_TYPE_INVALID;  //清空这个成员,设置未被使用
+		return 0;
 	}
 }
 
@@ -325,15 +364,137 @@ static void user_msg_load(player* user,void* data_buf,int uid)
 	free(req);
 }
 
+typedef struct _broadcast_list
+{
+	int broadcast_player_num;				//要广播的玩家数目
+	int uid_list[MAX_PLAYER_EACH_MAP];		//要广播的 uid 列表	
+}broadcast_list;
+
+typedef struct _player_id
+{
+	char state;						//记录这个成员空间的状态
+	uint8_t mapid;     		    	//记录这个用户在哪一个地图上
+	uint8_t map_playerid;  			//记录这个用户在mapid上的这个地图的玩家的id 0-9
+}player_id;
+
+
+
+//先回复一个LOG_RSP,发送完地图中的玩家信息后,回复一个GAME_START_RSP,之后追加广播列表
+static int map_broadcast_list_append(game_logic* gl,player_id* user_id)
+{
+	player_id* user_id = game_route_get_playerid(gl,uid);
+
+}
+
+static int map_broadcast_list_del()
+{
+
+}
+
+//追加广播列表-发送开始游戏的确认
+static int dispose_game_start_request(game_logic* gl,player_id* user_id,void* data_buf,int uid)
+{
+
+}
+
+//得到要广播uid这个玩家的广播uid列表
+//把n-1个整数从src复制到des,
+int uid_list_cpy(int* des,int* src,int n,int uid)
+{
+
+}
+
+//登陆时候发送不同的类型的数据
+static int login_msg_send(game_logic* gl,player_id* user_id,int uid,char msg_type)
+{
+	broadcast* broadcast_msg = (broadcast*)malloc(sizeof(broadcast));
+	if(broadcast_msg == NULL)
+	{
+		fprintf(ERR_FILE,"send_login_rsp: broadcast_msg malloc error\n");
+		return NULL;
+	}
+
+	broadcast_msg->list.broadcast_player_num = 1; 		//只有一个玩家
+	broadcast_msg->list.uid_list[0] = uid;		  		//玩家的uid
+
+	
+	int player_num = gl->route->map_player_num[user_id->mapid];		
+	void * rsp = NULL;
+	switch(msg_type)
+	{
+		case LOG_RSP:
+		{
+			player* user = &(gl->map_player[uid]);
+			rsp = login_rsp_creat(true,user->pos.point_x,user->pos.point_y,player_num,uid);
+			break;			
+		}
+
+		case ENEMY_MSG:
+		{
+			player* enemy = &(gl->map_player[uid]);
+			rsp = enemy_msg_creat(uid,enemy->pos.point_x,pos.point_y);
+			break;				
+		}
+
+		case GAME_START_RSP:
+			rsp = game_start_creat(true);
+			break;
+	}
+	if(rsp == NULL)
+	{
+		fprintf(ERR_FILE,"send_login_rsp: rsp malloc error\n");
+		return NULL;		
+	}
+	broadcast_msg->data.proto_type = msg_type;
+	broadcast_msg->data.buffer = rsp;
+
+	q_node* qnode = (q_node*)malloc(sizeof(q_node));
+	if(qnode == NULL)
+	{
+		fprintf(ERR_FILE,"send_login_rsp: qnode malloc error\n");
+		return -1;			
+	}
+	qnode->buffer = broadcast_msg;
+	queue_push(gl->que_2_net_logic,qnode);    
+
+	send_msg2_service(gl->sock_2_net_logic);	
+}
+
+
+//把玩家数据发送到netlogic,序列化之后，再根据广播列表发送出去
+//广播列表应该作为参数传递进去还是写在里面?
+static int broadcast_player_msg(game_logic* gl,int player_num,int *uid_list,int uid)
+{
+	broadcast* broadcast_msg = (broadcast*)malloc(sizeof(broadcast));
+	if(broadcast_msg == NULL)
+	{
+		fprintf(ERR_FILE,"send_login_rsp: broadcast_msg malloc error\n");
+		return NULL;
+	}
+	broadcast_msg->list.broadcast_player_num = player_num -1;		//减掉自己不需要广播
+	int_ncpy(broadcast_msg->list.uid_list,uid_list,player_num);     //复制广播列表
+
+
+
+}
+
 //需要把这个地图中的玩家信息发送回请求的玩家
+//信息加载->发送登陆确认回复->得到此时的地图内信息->发送给这个玩家->广播给其他玩家有新玩家登陆->发送开始游戏信息
 void dispose_login_request(game_logic* gl,player* user,player_id* user_id,void* data_buf,int uid)
 {
-	user_msg_load(user,data_buf,uid); //信息加载->得到此时的地图内信息->发送给这个玩家
-	int player_num = gl->map_player[user_id->mapid];
-	for(int i=0; i<player_num; i++)
+	user_msg_load(user,data_buf,uid); 								//信息加载
+	login_msg_send(gl,user_id,uid,LOG_RSP);							//发送登陆确认回复
+
+	int map_player_num = gl->route->map_player_num[user_id->mapid]; //这个地图中的玩家数目,此时并不包括自己
+						
+	for(int i=0; i<map_player_num; i++) 							//得到地图内其他玩家信息-发送给这个登录的玩家
 	{
-		
+		int enemy_uid = gl->route->map_player_socket_uid[i];	
+		login_msg_send(gl,NULL,enemy_uid,ENEMY_MSG);
 	}
+
+	//从这个函数开始写												//广播给其他玩家有新玩家登陆
+	login_msg_send(gl,NULL,0,GAME_START_RSP);						//发送开始游戏
 }
 
 static int dispose_game_logic(game_logic* gl,q_node* qnode)
@@ -347,7 +508,8 @@ static int dispose_game_logic(game_logic* gl,q_node* qnode)
 			case LOG_REQ: //登陆请求
 
 				break;
-			case:
+			case GAME_START_REQ:
+
 				break;
 			case:
 				break;
@@ -526,3 +688,32 @@ void* game_logic_service_loop(void* arg)
 
 
 
+/*
+
+//更新这个地图的广播列表
+static int update_map_broadcast_list(game_logic* gl,player_id* user_id)
+{
+	broadcast_list* list = (broadcast_list*)malloc(sizeof(broadcast_list));
+	if(list != NULL)
+	{
+		int index = 0;
+		list->broadcast_player_num = gl->map_player_num[user_id->mapid];
+		for(int i=0; i<MAX_PLAYER_EACH_MAP; i++)
+		{
+			if(gl->map_player_socket_uid[user_id->mapid][i] != PLAYER_UID_NULL)
+			{
+				list->uid_list[index++] = gl->map_player_socket_uid[user_id->mapid][i]; //得到不为空的玩家列表信息
+				if(index == list->broadcast_player_num)
+				{
+					break; //人数足够了,则剩余的都为空
+				}
+			}
+		}
+	}
+	else
+	{
+		return -1;
+	}
+	return list;
+}
+*/

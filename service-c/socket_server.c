@@ -286,9 +286,9 @@ static int dispose_readmessage(struct socket_server *ss,struct socket *s, struct
 		return -1;
 	}
 	memset(buffer,0,len);
-	//printf("need to read:%d\n",len);
+
 	n = (int)read(s->fd,buffer,len);
-	//printf("read is :%d\n",n);
+
 	if(n <= 0)
 		goto _err;
 
@@ -523,7 +523,6 @@ static struct socket_server* socket_server_create(net_io_start* start)
 		s->head = NULL;
 		s->tail = NULL;
 	}
-
 	ss->service_id = start->thread_id;
 	ss->io2netlogic_que = &start->que_pool[QUE_ID_NETIO_2_NETLOGIC];
 	ss->netlogic2io_que = &start->que_pool[QUE_ID_NETLOGIC_2_NETIO];
@@ -799,7 +798,6 @@ static int wait_netlogic_service_connect(struct socket_server* ss)
 	}
 	return 0;
 }
-
 
 
 //socket_server thread loop
