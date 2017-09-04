@@ -46,9 +46,10 @@ typedef struct _game_router
 	player_id* uid_2_playid;		 		 //MAX_SOCKET个成员,uid->player_id的映射
 	int* map_player_socket_uid[MAX_MAP];	 //存储这个地图中的用户 uid MAX_PLAYER_EACH_MAP;
 									 		 //map_player_uid[map_id]存储是map_id地图中的MAX_PLAYER_EACH_MAP个成员的UID
-	int *map_uid_list[MAX_MAP];				 //如果对应成员不存在则置空		
-				 	 						 //为每一个地图维护一个用于广播的 map_uid_list,地图内有效的玩家uid永远位于最前面
-}game_router;
+					 						 //如果对应成员不存在则置空		
+	
+	int *map_uid_list[MAX_MAP];			 	 //为每一个地图维护一个用于广播的 map_uid_list,地图内有效的玩家uid永远位于最前面
+}game_router;								 //这个广播列表应该放在网络IO线程吗?
 
 typedef struct _game_logic_start
 {

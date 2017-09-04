@@ -23,18 +23,17 @@
 
 #define GAME_START_REQ 		'S'
 
+#define LOGIN_END 			'i'
 
+typedef struct _HeroMsg      hero_msg;
+typedef struct _LoginReq     login_req;
+typedef struct _LoginRsp     login_rsp;
+typedef struct _EnemyMsg     enemy_msg;
+typedef struct _NewEnemy     new_enemy;
+typedef struct _StartReq     start_req;
+typedef struct _StartRsp     startRsp;
+typedef struct _LoginEnd 	 LoginEnd;
 
-
-typedef struct _HeroMsg 	hero_msg;
-typedef struct _HeartBeat 	heart_beat;
-typedef struct _LoginReq 	login_req;
-typedef struct _ConnectReq 	connect_req;
-typedef struct _LoginRsp 	login_rsp;
-typedef struct _ConnectRsp 	connect_rsp;
-typedef struct _EnemyMsg 	enemy_msg;
-typedef struct _NewEnemy 	new_enemy;
-typedef struct _GameStart 	game_start;
 
 static login_rsp* login_rsp_creat(bool success,int x,int y,int enemy_num,int uid)
 {
@@ -46,7 +45,7 @@ static login_rsp* login_rsp_creat(bool success,int x,int y,int enemy_num,int uid
 	rsp->success = success;
 	rsp->point_x = x;
 	rsp->point_y = y;
-	rsp->enemy_num = enemy_num;
+	rsp->enemy_num = enemy_num; 
 	rsp->uid = uid;
 
 	return rsp;
@@ -78,7 +77,31 @@ static enemy_msg* enemy_msg_creat(int uid,int x,int y)
 	return rsp;	
 }
 
+static new_enemy* new_enemy_creat(int uid,int x,int y)
+{
+	enemy_msg* rsp = (enemy_msg*)malloc(sizeof(enemy_msg));
+	if(rsp == NULL)
+	{
+		return NULL;
+	}
+	rsp->uid = uid;
+	rsp->point_x = x;
+	rsp->point_y = y;
 
+	return rsp;
+}
+
+login_end* login_end_creat(bool end)
+{
+	login_end* rsp = (login_end*)malloc(sizeof(login_end));
+	if(rsp == NULL)
+	{
+		return NULL;
+	}
+	rsp->success = end;
+
+	return rsp;
+}
 
 
 #endif

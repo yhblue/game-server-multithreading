@@ -1,47 +1,43 @@
-message Hero_msg{
+message hero_msg{
 	required int32 uid = 1;
 	required int32 point_x = 2;
 	required int32 point_y = 3;
 } 
 
 
-message Heart_beat{
-	
-}
-
-message Login_req{
+message login_req{
 	required string name = 1;
 }
 
-message Connect_req{
-	
-}
-
-message Login_rsp{
+message login_rsp{
 	required bool success = 1;
 	required int32 point_x = 2;
 	required int32 point_y = 3;	
 	required int32 enemy_num = 4;
 }
 
-
-message Connect_rsp{
-	required bool success = 1;
-}
-
-message Enemy_msg{
+message enemy_msg{
 	required int32 uid = 1;
 	required int32 point_x = 2;
 	required int32 point_y = 3;	
 }
 
-message New_enemy{
+message new_enemy{
 	required int32 uid = 1;
 	required int32 point_x = 2;
 	required int32 point_y = 3;		
 }
 
 
-message Game_start{
+message start_req{
 	required bool start = 1;
+}
+
+message start_rsp{
+	required bool start = 1;
+}
+
+
+message login_end{
+	required bool success = 1;
 }
