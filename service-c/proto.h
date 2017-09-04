@@ -3,6 +3,8 @@
 
 #include "message.pb-c.h"
 
+#include <malloc.h>
+
 #define LOG_REQ  	  		'L'
 #define LOG_RSP       		'l'
 
@@ -31,8 +33,8 @@ typedef struct _LoginRsp     login_rsp;
 typedef struct _EnemyMsg     enemy_msg;
 typedef struct _NewEnemy     new_enemy;
 typedef struct _StartReq     start_req;
-typedef struct _StartRsp     startRsp;
-typedef struct _LoginEnd 	 LoginEnd;
+typedef struct _StartRsp     start_rsp;
+typedef struct _LoginEnd 	 login_end;
 
 
 static login_rsp* login_rsp_creat(bool success,int x,int y,int enemy_num,int uid)
@@ -46,14 +48,14 @@ static login_rsp* login_rsp_creat(bool success,int x,int y,int enemy_num,int uid
 	rsp->point_x = x;
 	rsp->point_y = y;
 	rsp->enemy_num = enemy_num; 
-	rsp->uid = uid;
+//	rsp->uid = uid;  //这个字段要加上
 
 	return rsp;
 }
 
-static game_start* game_start_creat(bool start)
+static start_rsp* start_rsp_creat(bool start)
 {
-	game_start* rsp = (game_start*)malloc(sizeof(game_start));
+	start_rsp* rsp = (start_rsp*)malloc(sizeof(start_rsp));
 	if(rsp == NULL)
 	{
 		return NULL;
@@ -79,7 +81,7 @@ static enemy_msg* enemy_msg_creat(int uid,int x,int y)
 
 static new_enemy* new_enemy_creat(int uid,int x,int y)
 {
-	enemy_msg* rsp = (enemy_msg*)malloc(sizeof(enemy_msg));
+	new_enemy* rsp = (new_enemy*)malloc(sizeof(new_enemy));
 	if(rsp == NULL)
 	{
 		return NULL;
@@ -91,7 +93,7 @@ static new_enemy* new_enemy_creat(int uid,int x,int y)
 	return rsp;
 }
 
-login_end* login_end_creat(bool end)
+static login_end* login_end_creat(bool end)
 {
 	login_end* rsp = (login_end*)malloc(sizeof(login_end));
 	if(rsp == NULL)

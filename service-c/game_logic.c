@@ -397,7 +397,7 @@ static int login_msg_send(game_logic* gl,int uid,char msg_type)
 			break;
 
 		case GAME_START_RSP:
-			rsp = game_start_creat(true);
+			rsp = start_rsp_creat(true);
 			break;
 	}
 	if(rsp == NULL)

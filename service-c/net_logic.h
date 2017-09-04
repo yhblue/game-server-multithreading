@@ -22,6 +22,14 @@
 #define SERVICE_ID_GAME_THIRD       	 6
 #define SERVICE_ID_GAME_FOURTH      	 7
 
+#define MAX_SERVICE      			8
+
+#define GAME_LOGIC_SERVICE_NUM      4
+#define GAME_LOGIC_SERVER_FIRST     0
+#define GAME_LOGIC_SERVER_SECOND    1
+#define GAME_LOGIC_SERVER_THIRD     2
+#define GAME_LOGIC_SERVER_FOURTH    3
+
 // typedef struct _double_que
 // {
 // 	queue* que_to;

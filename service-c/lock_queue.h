@@ -19,12 +19,12 @@ typedef struct _head
     int len;	    		 //for data is buffer length,for other is 0	
 }head;
 
-typedef struct node 
-{  
-	void* msg_head;			 //改成void*类型更具有通用性了
-    void* buffer;       	 //for data is data_buffer,for other is NULL
-    struct node* next;  
-}q_node;
+// typedef struct node 
+// {  
+// 	void* msg_head;			 //改成void*类型更具有通用性了
+//     void* buffer;       	 //for data is data_buffer,for other is NULL
+//     struct node* next;  
+// }q_node;
 
 typedef struct node 
 {  

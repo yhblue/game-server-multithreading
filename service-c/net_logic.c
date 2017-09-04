@@ -44,11 +44,7 @@
 #define SERVICE_ID_GAME_THIRD       6
 #define SERVICE_ID_GAME_FOURTH      7
 
-#define GAME_LOGIC_SERVICE_NUM      4
-#define GAME_LOGIC_SERVER_FIRST     0
-#define GAME_LOGIC_SERVER_SECOND    1
-#define GAME_LOGIC_SERVER_THIRD     2
-#define GAME_LOGIC_SERVER_FOURTH    3
+
 
 #define PLAYER_TYPE_INVALID		   -1
 
@@ -363,7 +359,7 @@ static q_node* pack_inform_data(int uid_pack,char type_pack)
 	return qnode;
 }
 
-static int dispose_netio_service_que(net_logic* nl,queue* que,q_node* qnode)
+static int dispose_netio_service_que(net_logic* nl,q_node* qnode)
 {
 	char type = qnode->msg_type;  		// 'D' 'S' 'C'
 	int uid = qnode->uid;
@@ -416,7 +412,7 @@ static int dispose_queue_event(net_logic* nl)
 		switch(service_type)
 		{
 			case SERVICE_TYPE_NET_IO:			
-				dispose_netio_service_que(nl,que,qnode);
+				dispose_netio_service_que(nl,qnode);
 				break;
 
 			case SERVICE_TYPE_GAME_LOGIC:
