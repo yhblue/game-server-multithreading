@@ -90,7 +90,7 @@ typedef struct _game_logic
 static int game_route_table_creat(game_logic* gl)
 {
 	gl->route = (game_router*)malloc(sizeof(game_router));
-//	printf("sizeof(game_router) = %d\n",sizeof(game_router));
+
 	if(gl->route == NULL)
 	{
 		fprintf(ERR_FILE,"game_route_table_creat:route malloc failed\n");
@@ -199,6 +199,7 @@ static game_logic* game_logic_creat(game_logic_start* start)
 
 	gl->check_que = false;
 	gl->service_que = distribute_game_service_que(gl,start);
+	gl->que_2_net_logic = &start->que_pool[QUE_ID_GAMELOGIC_2_NETLOGIC];
 	game_route_table_creat(gl);
 	FD_ZERO(&gl->select_set); 
 
@@ -334,6 +335,12 @@ static void user_msg_load(player* user,void* data_buf,int uid)
 	else //客户端有误
 	{
 		strncpy(user->msg.name,req->name,MAX_USER_NAME_LEN);
+	}
+
+	if(user == NULL)
+	{
+		printf("user is null\n");
+		return;
 	}
 	user->pos.point_x = START_POSITION_X;
 	user->pos.point_y = START_POSITION_Y;	
@@ -488,6 +495,7 @@ static int broadcast_player_msg(game_logic* gl,player* user,player_id* user_id,c
 //信息加载->发送登陆确认回复->得到此时的地图内信息->发送给这个玩家->广播给其他玩家有新玩家登陆->发送开始游戏信息
 static void dispose_login_request(game_logic* gl,player_id* user_id,void* data,int uid)
 {
+	printf("****game:user_id->mapid = %d user_id->map_playerid =%d *****\n",user_id->mapid,user_id->map_playerid);
 	player* user = &(gl->map_player[user_id->mapid][user_id->map_playerid]);
 	user_msg_load(user,data,uid); 
 
@@ -564,13 +572,13 @@ static int dispose_queue_event(game_logic* gl)
 				break;
 
 			case TYPE_CLOSE:    //玩家关闭
-				printf("<<<<<<<game service: client close uid = >>>>>>>\n",qnode->uid);
+				printf("<<<<<<<game service: client close uid = %d>>>>>>>\n",qnode->uid);
 				game_route_del(gl,qnode->uid); 				//在路由表中删除该成员
 				map_uid_list_rebuild(gl,qnode->uid);		//广播列表重建 
 				break;
 
 			case TYPE_SUCCESS:  //新玩家登陆
-				printf("<<<<<<<<game service: new client uid = >>>>>>>>\n",qnode->uid);
+				printf("<<<<<<<<game service: new client uid = %d>>>>>>>>\n",qnode->uid);
 				game_route_append(gl,qnode->uid);
 				break;
 		} 
