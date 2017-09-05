@@ -90,17 +90,17 @@ typedef struct _game_logic
 static int game_route_table_creat(game_logic* gl)
 {
 	gl->route = (game_router*)malloc(sizeof(game_router));
-	printf("sizeof(game_router) = %d\n",sizeof(game_router));
+//	printf("sizeof(game_router) = %d\n",sizeof(game_router));
 	if(gl->route == NULL)
 	{
-		fprintf(ERR_FILE,"net_logic_creat:route malloc failed\n");
+		fprintf(ERR_FILE,"game_route_table_creat:route malloc failed\n");
 		return -1;   		
 	}
 
-	gl->route->uid_2_playid = (player_id*)malloc(sizeof(player_id) * MAX_SOCKET);
-	if(gl->route->uid_2_playid == NULL)
+	gl->route->uid_2_playid = (player_id*)malloc(sizeof(player_id) * MAX_SOCKET); //uid->playerid 的映射表
+	if(gl->route->uid_2_playid == NULL)											  //可能以后会从主线程中传递进来
 	{
-		fprintf(ERR_FILE,"net_logic_creat:route malloc failed\n");
+		fprintf(ERR_FILE,"game_route_table_creat:route malloc failed\n");
 		return -1;    			
 	}
 	for(int i=0; i<MAX_SOCKET; i++)
@@ -329,6 +329,7 @@ static void user_msg_load(player* user,void* data_buf,int uid)
 	if(strlen(req->name) <= MAX_USER_NAME_LEN)
 	{
 		strcpy(user->msg.name,req->name);
+		printf("game:user msg load! name = %s\n",req->name);
 	}
 	else //客户端有误
 	{
@@ -522,12 +523,13 @@ static int dispose_game_logic(game_logic* gl,q_node* qnode)
 	int uid = qnode->uid;
 	void* data = qnode->buffer;
 	player_id* user_id = game_route_get_playerid(gl,uid);	//根据uid得到playerid
-	
+	printf("-----game: client:uid = %d,user_id->mapid = %d,user_id->map_playerid = %d----\n",uid,user_id->mapid,user_id->map_playerid);
 	if(user_id != NULL)
 	{
 		switch(qnode->proto_type)
 		{
-			case LOG_REQ: //登陆请求
+			case LOG_REQ: 		 //登陆请求
+				printf("-----game:recieve que login require-----\n");
 				dispose_login_request(gl,user_id,data,uid);
 				break;
 
@@ -557,15 +559,18 @@ static int dispose_queue_event(game_logic* gl)
 		switch(type)
 		{
 			case TYPE_DATA:	    //玩家数据
+				printf("<<<<<<<<game:client data>>>>>>>\n");
 				dispose_game_logic(gl,qnode);
 				break;
 
 			case TYPE_CLOSE:    //玩家关闭
+				printf("<<<<<<<game service: client close uid = >>>>>>>\n",qnode->uid);
 				game_route_del(gl,qnode->uid); 				//在路由表中删除该成员
 				map_uid_list_rebuild(gl,qnode->uid);		//广播列表重建 
 				break;
 
 			case TYPE_SUCCESS:  //新玩家登陆
+				printf("<<<<<<<<game service: new client uid = >>>>>>>>\n",qnode->uid);
 				game_route_append(gl,qnode->uid);
 				break;
 		} 

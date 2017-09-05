@@ -74,7 +74,7 @@ typedef struct _imform2_game
 
 typedef struct _router
 {
-	char sock_id2game_logic[MAX_SOCKET];			//用户socket id 到 游戏逻辑服务的id 0-3
+	char sock_id2game_logic[MAX_SOCKET];					//用户socket id 到 游戏逻辑服务的id 0-3
 	int online_player[GAME_LOGIC_SERVICE_NUM];  			//记录每个游戏服务的人数 
 	queue* que_2_gamelogic[GAME_LOGIC_SERVICE_NUM]; 		//net logic 服务到 game logic服务各自的消息队列
 	int gamelog_socket[GAME_LOGIC_SERVICE_NUM];             //与game_logic 服务通信的socket
@@ -213,6 +213,7 @@ static deserialize* unpack_user_data(unsigned char * data_pack,int len)
 	{
 		case LOG_REQ:
 			msg = login_req__unpack(NULL,data_len,seria_data);//函数里面malloc了内存，返回给msg使用
+			printf("nelogic service: client login require,upack data is:%s\n",((login_req*)msg)->name);
 			break;		
 
 		case HERO_MSG_REQ:
