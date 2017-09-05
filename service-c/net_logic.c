@@ -219,13 +219,13 @@ static deserialize* unpack_user_data(unsigned char * data_pack,int len)
 			msg = hero_msg__unpack(NULL,data_len,seria_data);
 			break;			
 
-		case CONNECT_REQ:
-			msg = connect_req__unpack(NULL,data_len,seria_data);
-			break;				
+		// case CONNECT_REQ:
+		// 	msg = connect_req__unpack(NULL,data_len,seria_data);
+		// 	break;				
 
-		case HEART_REQ:
-			msg = heart_beat__unpack(NULL,data_len,seria_data);
-			break;			
+		// case HEART_REQ:
+		// 	msg = heart_beat__unpack(NULL,data_len,seria_data);
+		// 	break;			
 	}	
 	data->proto_type = proto_type;
 	data->buffer = msg;
