@@ -170,6 +170,7 @@ static int route_clear_gamelogic_id(net_logic* nl,int socket_id)
 	return 0;
 }
 
+//get game_logic by socket_id
 static int route_get_gamelogic_id(net_logic* nl,int socket_id)
 {
 	if(nl->route.sock_id2game_logic[socket_id] != PLAYER_TYPE_INVALID)
@@ -197,7 +198,6 @@ queue* route_get_msg_que(net_logic* nl,int socket_id)
 static inline 
 int route_get_msg_socket(net_logic* nl,int socket_id)
 {
-//	route_get_gamelogic_id(nl,socket_id);
 	return nl->route.gamelog_socket[nl->route.game_service_id];		   //socket
 }
 
@@ -220,9 +220,10 @@ static deserialize* unpack_user_data(unsigned char * data_pack,int len)
 			msg = hero_msg__unpack(NULL,data_len,seria_data);
 			break;			
 
-		// case CONNECT_REQ:
-		// 	msg = connect_req__unpack(NULL,data_len,seria_data);
-		// 	break;				
+		case GAME_START_REQ:
+			msg = start_req__unpack(NULL,data_len,seria_data);
+			printf("nelogic service: client game start require\n");
+			break;				 
 
 		// case HEART_REQ:
 		// 	msg = heart_beat__unpack(NULL,data_len,seria_data);
@@ -312,7 +313,7 @@ static int send_msg_2_game_logic(net_logic* nl,q_node* qnode,int uid) //socket_i
 	}
 	queue_push(que,qnode);
 	int socket = route_get_msg_socket(nl,uid);
-	//printf("netlogic send data to game\n");
+
 	if(send_msg2_service(socket) == -1)
 	{
 		fprintf(ERR_FILE,"send_msg_2_game_logic:send_msg2_service failed\n");
@@ -382,9 +383,9 @@ static int dispose_netio_service_que(net_logic* nl,q_node* qnode)
 		case TYPE_CLOSE:    			// 'C'
 		{
 			printf("^^^^^^netlogic type = TYPE_CLOSE ^^^^^^^^^^^\n");
-			route_clear_gamelogic_id(nl,uid);  //清空路由表对应的socket位置
 			q_node* send_qnode = pack_inform_data(uid,type); 
 			send_msg_2_game_logic(nl,send_qnode,uid);
+			route_clear_gamelogic_id(nl,uid);  //清空路由表对应的socket位置
 			break;
 		}
 		
