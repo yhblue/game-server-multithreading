@@ -128,6 +128,19 @@ static int game_route_table_creat(game_logic* gl)
 			gl->route->map_player_socket_uid[mapid][i] = PLAYER_UID_NULL;
 		}
 	}
+	for(mapid=0; mapid<MAX_MAP;mapid++)
+	{
+		gl->route->map_uid_list[mapid] = (int*)malloc(sizeof(int) * MAX_PLAYER_EACH_MAP);
+		if(gl->route->map_uid_list[mapid] == NULL)
+		{
+			fprintf(ERR_FILE,"game_logic_creat:game service = %d gl->map_player_uid malloc error\n",gl->game_service_id);
+			return -1;				
+		}
+		for(int i=0; i<MAX_PLAYER_EACH_MAP; i++)
+		{
+			gl->route->map_uid_list[mapid][i] = 0;
+		}
+	}
 	return 0;
 }
 
@@ -183,7 +196,6 @@ static game_logic* game_logic_creat(game_logic_start* start)
 		{
 			gl->map_player[mapid][i].state = STATE_TYPE_INVALID;
 		}
-
 	}
 
 //	gl->route = start->route;
@@ -236,7 +248,8 @@ static int game_route_get_mapid(game_logic* gl,int uid)
 //返回在mapid地图的MAX_PLAYER_EACH_MAP个成员中的其中一个空闲的成员的id
 static int game_route_get_playerid_in_map(game_logic* gl,int mapid)
 {
-	for(int i=0; i<MAX_PLAYER_EACH_MAP; i++)
+	int i = 0; 
+	for(i=0; i<MAX_PLAYER_EACH_MAP; i++)
 	{
 		if(gl->map_player[mapid][i].state == STATE_TYPE_INVALID)
 		{
@@ -283,9 +296,11 @@ static int game_route_append(game_logic* gl,int uid)
 					gl->route->uid_2_playid[uid].mapid = map_id;
 					gl->route->uid_2_playid[uid].map_playerid = id_in_map;	   
 					gl->route->map_player_socket_uid[map_id][id_in_map] = uid; 		//记录这个uid，用于广播
+					//gl->route->map_player_num[map_id] ++;
 				    gl->route->player_num ++;			                       		//游戏逻辑服人数自增		
 					// 当游戏开始时候才更新地图中玩家数目,但是让 gl->route->player_num 先增加，标记这个游戏逻辑服人数已经增加
-					printf(">>>>>> game: uid = %d distribute map_id = %d,map_playerid = %d <<<<<<<<\n",uid,map_id,id_in_map);
+					printf("~~~~~~game: uid = %d map_id = %d,map_playerid = %d gl->route->map_player_num=%d~~~~~~~~~\n",uid,map_id,id_in_map,gl->route->map_player_num[map_id]);
+
 					return 0;			
 				}
 				else
@@ -322,7 +337,6 @@ static int game_route_del(game_logic* gl,int uid)
 
 		return 0;
 	}
-	
 	return -1;
 }
 
@@ -431,25 +445,28 @@ void map_uid_list_rebuild(game_logic* gl,int uid)
 		return;
 	}
 	int mapid = user_id->mapid;
+	printf("--------rebuild: mapid = %d\n",mapid);
 	int index = 0;
 
 	for(int i=0; i<MAX_PLAYER_EACH_MAP; i++)  //10
 	{
 		int user_id = gl->route->map_player_socket_uid[mapid][i]; 
+		printf("+++++++++game rebuild:user_id = %d ++++++\n",user_id);
 		if((user_id != PLAYER_UID_NULL) && (user_id != uid))    //那么不为空的放在 map_uid_list[] 最前面
 		{
-			gl->route->map_uid_list[mapid][index++] = gl->route->map_player_socket_uid[mapid][i]; //把有效的uid都放在最前面
+			printf("*******game rebuild:user_id = %d ********\n",user_id);
+			gl->route->map_uid_list[mapid][index++] = user_id; //把有效的uid都放在最前面
 		}
 	}
-
 	printf("rebuild list index = %d,player = %d\n ",index,gl->route->map_player_num[mapid]);
-//	assert(index == (gl->route->map_player_num[mapid]));
+	assert(index == (gl->route->map_player_num[mapid]-1));
 }
 
 
 static void map_uid_list_append(game_logic* gl,int mapid,int uid)
 {
 	int index = gl->route->map_player_num[mapid] - 1; //总人数-1 = index 
+	printf("\n\n\n!!!-------list append index = %d --------\n",index);
 	gl->route->map_uid_list[mapid][index] = uid; 
 }
 
@@ -493,6 +510,7 @@ static int broadcast_player_msg(game_logic* gl,player* user,player_id* user_id,c
 		return -1;			
 	}
 	qnode->buffer = broadcast_msg;
+	printf("@@-----game:game->net queue:%d\n",gl->que_2_net_logic);
 	queue_push(gl->que_2_net_logic,qnode);    
 
 	send_msg2_service(gl->sock_2_net_logic);	
@@ -524,15 +542,21 @@ static void dispose_login_request(game_logic* gl,player_id* user_id,void* data,i
 
 static int dispose_start_request(game_logic* gl,player_id* user_id,void* data,int uid)
 {							
-	player* user = &(gl->map_player[user_id->mapid][user_id->map_playerid]);		
+	start_req* req = (start_req*)data;
+	if(req->start == true)
+	{
+		printf("^^^^^^^game: client require start is true^^^^^^^\n");
+		player* user = &(gl->map_player[user_id->mapid][user_id->map_playerid]);		
 
-	broadcast_player_msg(gl,user,user_id,NEW_ENEMY);					 //广播给其他玩家有新玩家登陆
+		broadcast_player_msg(gl,user,user_id,NEW_ENEMY);					 //广播给其他玩家有新玩家登陆
 
-	gl->route->map_player_num[user_id->mapid] ++;						 //地图内玩家自增
+		gl->route->map_player_num[user_id->mapid] ++;						 //地图内玩家自增
 
-	map_uid_list_append(gl,user_id->mapid,uid);							 //追加广播列表
-	login_msg_send(gl,uid,0,GAME_START_RSP);								 //发送开始游戏	
+		map_uid_list_append(gl,user_id->mapid,uid);							 //追加广播列表
+		login_msg_send(gl,uid,0,GAME_START_RSP);							 //发送开始游戏	
+	}
 
+	free(data);
 	return 0;
 }
 
@@ -554,7 +578,7 @@ static int dispose_game_logic(game_logic* gl,q_node* qnode)
 			case GAME_START_REQ: //开始游戏请求
 				//广播新玩家进入地图 -> 地图人数+1 -> 广播列表追加 -> 回应开始游戏
 				printf("#######game:recieve que game start require#######\n");
-				//dispose_start_request(gl,user_id,data,uid); //this function have error
+				dispose_start_request(gl,user_id,data,uid); //this function have error
 				break;
 		}
 	}
@@ -578,18 +602,18 @@ static int dispose_queue_event(game_logic* gl)
 		switch(type)
 		{
 			case TYPE_DATA:	    //玩家数据
-				printf("<<<<<<<<game:client data>>>>>>>\n");
+				printf("\n\n<<<<<<<<game:client data>>>>>>>\n");
 				dispose_game_logic(gl,qnode);
 				break;
 
 			case TYPE_CLOSE:    //玩家关闭
-				printf("<<<<<<<game service: client close uid = %d>>>>>>>\n",qnode->uid);
+				printf("\n\n<<<<<<<game service: client close uid = %d>>>>>>>\n",qnode->uid);
 				map_uid_list_rebuild(gl,qnode->uid);		//广播列表重建 
-				game_route_del(gl,qnode->uid); 				//在路由表中删除该成员 
+				game_route_del(gl,qnode->uid); 			//在路由表中删除该成员 
 				break;
 
 			case TYPE_SUCCESS:  //新玩家登陆
-				printf("<<<<<<<<game service: new client uid = %d>>>>>>>>\n",qnode->uid);
+				printf("\n\n<<<<<<<<game service: new client uid = %d>>>>>>>>\n",qnode->uid);
 				game_route_append(gl,qnode->uid);
 				break;
 		} 
