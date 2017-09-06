@@ -97,6 +97,7 @@ typedef struct _net_logic
 	int listen_fd;
 	char* serv_addr;
 	int serv_port;
+	int port_2_netlogic;
 	bool socket_send;						//为 true 才会向另一个服务发送一个字节的信息，唤醒对方，然后立刻
 											//修改为false,只有当对方服务进入了休眠状态，在进入之前发送一个字节给
 }net_logic;									//自己，告诉它已经进入休眠，修改为true
@@ -301,6 +302,7 @@ static net_logic* net_logic_creat(net_logic_start* start)
 	nt->serv_port = start->netlog_port;
 	nt->serv_addr = start->netlog_addr;
 
+	nt->port_2_netlogic = start->port_2_netlogic;
 	return nt;
 }
 
@@ -590,9 +592,9 @@ static int connect_netio_service(net_logic* nl,char* netio_addr,int netio_port)
 
     memset(&netlog_service_addr,0,sizeof(netlog_service_addr));
     netlog_service_addr.sin_family = AF_INET;
-    netlog_service_addr.sin_port = htons(PORT_NETLOG_2_NETIO_SERVICE);		//8001
+    netlog_service_addr.sin_port = htons(nl->port_2_netlogic);		//8001
 
-    printf("netio:port=%d\n",PORT_NETLOG_2_NETIO_SERVICE);
+//    printf("netio:port=%d\n",PORT_NETLOG_2_NETIO_SERVICE);
 
 	int optval = 1;
 	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1)
@@ -741,7 +743,7 @@ static int service_connect_establish(net_logic_start* start,net_logic* nl)
 }
 
 //configure* config,
-net_logic_start* net_logic_start_creat(queue* que_pool)
+net_logic_start* net_logic_start_creat(queue* que_pool,configure* conf)
 {
 	net_logic_start* start = malloc(sizeof(net_logic_start));
 	if(start == NULL)
@@ -751,13 +753,13 @@ net_logic_start* net_logic_start_creat(queue* que_pool)
 	}
 
 	start->que_pool = que_pool;
-	start->service_id = 1;
-	start->netio_addr = "127.0.0.1";
-	start->netio_port = 8000;
+	start->service_id = SERVICE_ID_NET_ROUTE;
+	start->netio_addr = conf->service_address;
+	start->netio_port = conf->service_port;
 
-	start->netlog_addr = "127.0.0.1";
-	start->netlog_port = 8001;
-
+	start->netlog_addr = conf->service_address;
+	start->netlog_port = conf->netlogic_service_port;
+	start->port_2_netlogic = conf->netlogic_listen_port;
 	return start;
 }
 

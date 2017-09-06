@@ -17,8 +17,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-//http://www.cnblogs.com/purpleraintear/p/6160733.html
-
 
 
 #define GAME_LOG_EVENT_QUE_NULL          1
@@ -85,6 +83,17 @@ typedef struct _game_logic
 	int game_service_id;			 //记录是第几个游戏逻辑处理服务
 	map_msg map;					 //地图信息
 }game_logic;
+
+player_id* playerid_list_creat(void)
+{
+	player_id* uid_2_playerid = (player_id*)malloc(sizeof(player_id) * MAX_SOCKET);
+	if(uid_2_playerid == NULL)
+	{
+		fprintf(ERR_FILE,"playerid_list_creat:uid_2_playerid malloc failed\n");
+		return NULL;		
+	}
+	return uid_2_playerid;
+}
 
 
 static int game_route_table_creat(game_logic* gl)

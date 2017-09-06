@@ -44,6 +44,7 @@ typedef struct _net_logic_start
 	int netio_port;
 	char* netlog_addr;
 	int netlog_port;
+	int port_2_netlogic;
 }net_logic_start;
 
 

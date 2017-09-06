@@ -523,7 +523,7 @@ static struct socket_server* socket_server_create(net_io_start* start)
 		s->head = NULL;
 		s->tail = NULL;
 	}
-	ss->service_id = start->thread_id;
+	ss->service_id = start->service_id;
 	ss->io2netlogic_que = &start->que_pool[QUE_ID_NETIO_2_NETLOGIC];
 	ss->netlogic2io_que = &start->que_pool[QUE_ID_NETLOGIC_2_NETIO];
 	ss->address = start->address;
@@ -737,13 +737,13 @@ static void send_client_msg2net_logic(struct socket_server* ss,q_node* qnode)
 }
 
 //这里应该不要传递那么多参数，直接传递读配置文件后返回的指针吧
-net_io_start* net_io_start_creat(queue* que_pool,int thread_id,char*address,int port)
+net_io_start* net_io_start_creat(queue* que_pool,configure* conf)
 {
 	net_io_start* start = (net_io_start*)malloc(sizeof(net_io_start));
 	start->que_pool = que_pool;
-	start->thread_id = thread_id;
-	start->address = address;
-	start->port = port;
+	start->service = SERVICE_ID_NETWORK_IO;
+	start->address = conf->service_address;
+	start->port = conf->service_port;
 
 	return start;
 }
