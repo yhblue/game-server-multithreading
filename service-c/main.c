@@ -24,10 +24,10 @@ int main()
 	player_id* uid_2_playerid = playerid_list_creat();
 	if(uid_2_playerid == NULL) return -1;
 
-	game_logic_start* game_start01 = game_logic_start_creat(que_pool,conf,uid_2_playid,SERVICE_ID_GAME_FIRST);
-	game_logic_start* game_start02 = game_logic_start_creat(que_pool,conf,uid_2_playid,SERVICE_ID_GAME_SECOND);
-	game_logic_start* game_start03 = game_logic_start_creat(que_pool,conf,uid_2_playid,SERVICE_ID_GAME_THIRD);
-	game_logic_start* game_start04 = game_logic_start_creat(que_pool,conf,uid_2_playid,SERVICE_ID_GAME_FOURTH);
+	game_logic_start* game_start01 = game_logic_start_creat(que_pool,conf,uid_2_playerid,SERVICE_ID_GAME_FIRST);
+	game_logic_start* game_start02 = game_logic_start_creat(que_pool,conf,uid_2_playerid,SERVICE_ID_GAME_SECOND);
+	game_logic_start* game_start03 = game_logic_start_creat(que_pool,conf,uid_2_playerid,SERVICE_ID_GAME_THIRD);
+	game_logic_start* game_start04 = game_logic_start_creat(que_pool,conf,uid_2_playerid,SERVICE_ID_GAME_FOURTH);
 
 	pthread_create(&pthread_id[2],NULL,game_logic_service_loop,game_start01);
 	pthread_create(&pthread_id[3],NULL,game_logic_service_loop,game_start02);

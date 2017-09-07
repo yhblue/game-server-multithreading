@@ -1,7 +1,6 @@
 #include "game_logic.h"
 #include "socket_server.h"
 #include "message.pb-c.h"
-#include "net_logic.h"
 #include "configure.h"
 #include "err.h"
 #include "port.h"
@@ -75,9 +74,11 @@ typedef struct _game_logic
 	player* map_player[MAX_MAP];  	 //map_player 是一个指向 sizeof(player) * MAX_PLAYER_EACH_MAP 的头指针
 									 //相当于一个 player map_player[MAX_MAP][MAX_PLAYER_EACH_MAP]二维数组
 	game_router* route;				 //路由表
-	char* netlog_addr;				 
-	int netlog_port;
+
+	char* service_route_addr;
+	int service_route_port;
 	int service_port;
+
 	fd_set select_set;
 	bool check_que;
 	int serv_port;
@@ -240,15 +241,14 @@ static game_logic* game_logic_creat(game_logic_start* start)
 		}
 	}
 
-	gl->netlog_addr = start->netlog_addr;
+	gl->service_route_addr = start->service_route_addr;
 	gl->service_route_port = start->service_route_port;
 
 	gl->service_port = start->service_port;
 	gl->game_service_id = start->game_service_id;
 
 	printf("game logic message\n");
-	printf("gl->netlog_addr = %s\n",gl->netlog_addr);
-	printf("gl->netlog_port = %d\n",gl->netlog_port);
+	printf("gl->service_route_port = %d\n",gl->service_route_port);
 	printf("game_logic_creat:gl->service_port = %d\n",gl->service_port);
 
 	gl->check_que = false;
@@ -471,6 +471,7 @@ static int login_msg_send(game_logic* gl,int hero_uid,int enemy_uid,char msg_typ
 		return -1;			
 	}
 	qnode->buffer = broadcast_msg;
+	qnode->next = NULL;
 	queue_push(gl->que_2_net_logic,qnode);    
 
 	send_msg2_service(gl->sock_2_net_logic);	
@@ -552,7 +553,7 @@ static int broadcast_player_msg(game_logic* gl,player* user,player_id* user_id,c
 		return -1;			
 	}
 	qnode->buffer = broadcast_msg;
-	printf("@@-----game:game->net queue:%d\n",gl->que_2_net_logic);
+	qnode->next = NULL;
 	queue_push(gl->que_2_net_logic,qnode);    
 
 	send_msg2_service(gl->sock_2_net_logic);	
@@ -607,7 +608,7 @@ static int dispose_game_logic(game_logic* gl,q_node* qnode)
 	int uid = qnode->uid;
 	void* data = qnode->buffer;
 	player_id* user_id = game_route_get_playerid(gl,uid);	//根据uid得到playerid
-	printf("-----game: client:uid = %d,user_id->mapid = %d,user_id->map_playerid = %d----\n",uid,user_id->mapid,user_id->map_playerid);
+	printf("-----game: client:uid = %d,gameid = %d,user_id->mapid = %d,user_id->map_playerid = %d----\n",uid,gl->game_service_id,user_id->mapid,user_id->map_playerid);
 	if(user_id != NULL)
 	{
 		switch(qnode->proto_type)
@@ -751,7 +752,7 @@ static int connect_netlogic_service(game_logic* gl)
     memset(&netlog_service_addr,0,sizeof(netlog_service_addr));
     netlog_service_addr.sin_family = AF_INET;
     netlog_service_addr.sin_port = htons(gl->service_route_port);
-    netlog_service_addr.sin_addr.s_addr = inet_addr(gl->netlog_addr);
+    netlog_service_addr.sin_addr.s_addr = inet_addr(gl->service_route_addr);
 
     for( ;; )
     {
@@ -764,7 +765,7 @@ static int connect_netlogic_service(game_logic* gl)
 	    {
 		    //connect sussess
 		    gl->sock_2_net_logic = sockfd;
-		    printf("game:game_logic service connect to net_logic service service success!\n");
+		    printf("game:game_logic port = %d service connect to net_logic service service success!\n",gl->service_port);
 		    return 0;    	
 	    }	
     }

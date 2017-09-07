@@ -2,7 +2,7 @@
 #define _GAME_LOGIC_H
 
 #include "lock_queue.h"
-
+#include "net_logic.h"
 #include <stdint.h>
 
 //一个游戏逻辑线程最大支持20*10个玩家在线

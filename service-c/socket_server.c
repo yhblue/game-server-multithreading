@@ -4,7 +4,6 @@
 #include "socket_server.h"
 #include "socket_epoll.h"
 #include "lock_queue.h"
-#include "configure.h"
 #include "err.h"
 #include "port.h"
 
@@ -145,7 +144,6 @@ void socket_keepalive(int fd)
 	setsockopt(fd,SOL_SOCKET,SO_KEEPALIVE,(void*)&keep_alive,sizeof(keep_alive));
 }
 
-
 static int do_listen(const char* host,int port,int max_connect)
 {
     int listen_fd;
@@ -161,7 +159,7 @@ static int do_listen(const char* host,int port,int max_connect)
     serv_addr.sin_family = AF_INET;  	//ipv4
     serv_addr.sin_addr.s_addr = inet_addr(host);
     serv_addr.sin_port = htons(port);              //主机->网络
-    printf(":::::::network io service listen port = %d:::::::::\n",port);
+    printf(":::::::network io service address = %s listen port = %d:::::::::\n",host,port);
 
     int optval = 1;
     if(setsockopt(listen_fd,SOL_SOCKET,SO_REUSEADDR,&optval,sizeof(optval)) == -1)

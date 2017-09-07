@@ -9,7 +9,8 @@ typedef struct _configure
 
 }configure;
 
-const char* conf_file = "../config/config"
+extern const char* conf_file;
+configure* configure_load(const char* config_path);
 
 #endif
 

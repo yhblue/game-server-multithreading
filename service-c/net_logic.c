@@ -2,7 +2,6 @@
 #include "message.pb-c.h"
 #include "lock_queue.h"
 #include "socket_epoll.h"
-#include "configure.h"
 #include "proto.h"
 #include "socket_server.h"
 #include "configure.h"
@@ -98,7 +97,6 @@ typedef struct _net_logic
 	int listen_fd;
 	char* serv_addr;
 	int serv_port;
-	int port_service_listen;				//用于监听其他服务连接的port
 	bool socket_send;						//为 true 才会向另一个服务发送一个字节的信息，唤醒对方，然后立刻
 											//修改为false,只有当对方服务进入了休眠状态，在进入之前发送一个字节给
 }net_logic;									//自己，告诉它已经进入休眠，修改为true
@@ -124,18 +122,18 @@ queue* message_que_creat()
 //为一个新的 socket 分配到一个游戏逻辑服务的 id
 uint8_t route_distribute_gamelogic(net_logic* nl)
 {
-	// int gamelogic01_player = nl->route.online_player[GAME_LOGIC_SERVER_FIRST];
-	// int gamelogic02_player = nl->route.online_player[GAME_LOGIC_SERVER_SECOND];
-	// int gamelogic03_player = nl->route.online_player[GAME_LOGIC_SERVER_THIRD];
-	// int gamelogic04_player = nl->route.online_player[GAME_LOGIC_SERVER_FOURTH];
+	int gamelogic01_player = nl->route.online_player[GAME_LOGIC_SERVER_FIRST];
+	int gamelogic02_player = nl->route.online_player[GAME_LOGIC_SERVER_SECOND];
+	int gamelogic03_player = nl->route.online_player[GAME_LOGIC_SERVER_THIRD];
+	int gamelogic04_player = nl->route.online_player[GAME_LOGIC_SERVER_FOURTH];
 
-	// uint8_t id1 = (gamelogic01_player < gamelogic02_player)? GAME_LOGIC_SERVER_FIRST:GAME_LOGIC_SERVER_SECOND;
-	// uint8_t id2 = (gamelogic03_player < gamelogic04_player)? GAME_LOGIC_SERVER_THIRD:GAME_LOGIC_SERVER_FOURTH;
+	uint8_t id1 = (gamelogic01_player < gamelogic02_player)? GAME_LOGIC_SERVER_FIRST:GAME_LOGIC_SERVER_SECOND;
+	uint8_t id2 = (gamelogic03_player < gamelogic04_player)? GAME_LOGIC_SERVER_THIRD:GAME_LOGIC_SERVER_FOURTH;
 
-	// uint8_t ret = (nl->route.online_player[id1] < nl->route.online_player[id2])? id1 : id2;
+	uint8_t ret = (nl->route.online_player[id1] < nl->route.online_player[id2])? id1 : id2;
 
-	// return ret;
-	return 0;
+	return ret;
+//	return 0;
 }
 
 //SOCKET_SUCCESS
@@ -299,11 +297,33 @@ static net_logic* net_logic_creat(net_logic_start* start)
 		nt->route.online_player[i] = 0;
 	}
 
-	nt->serv_port = start->netlog_port;
-	nt->serv_addr = start->netlog_addr;
+	nt->serv_addr = start->service_addr;
+	nt->serv_port = start->service_port;
 
-	nt->port_service_listen = start->port_service_listen;
 	return nt;
+}
+
+//configure* config,
+net_logic_start* net_logic_start_creat(queue* que_pool,configure* conf,int service_id)
+{
+	net_logic_start* start = malloc(sizeof(net_logic_start));
+	if(start == NULL)
+	{
+       fprintf(ERR_FILE,"net_logic_start_creat:start malloc failed\n");
+       return NULL;			
+	}
+
+	start->que_pool = que_pool;
+	start->service_id = service_id;
+	start->netio_addr = conf->service_address;
+	start->netio_port = conf->service_port;
+
+	printf("start->netio_addr = %s\n",start->netio_addr);
+
+	start->service_addr = conf->service_address;
+	start->service_port = conf->service_route_port; //监听的 address 和 socket
+
+	return start;
 }
 
 static int send_msg_2_game_logic(net_logic* nl,q_node* qnode,int uid) //socket_id
@@ -513,10 +533,10 @@ static int net_logic_event(net_logic *nt)
 				break;
 
 			case SERVICE_TYPE_GAME_LOGIC: 	//游戏逻辑处理进程，去处理广播信息		
-				//nt->current_que = &nt->que_pool[QUE_ID_GAMELOGIC_2_NETLOGIC];
-				printf("@@----gamelogicgame->net queue:%d\n",&nt->que_pool[QUE_ID_GAMELOGIC_2_NETLOGIC]);
-				//->check_que = true;
-				//nt->current_serice = sv;
+				nt->current_que = &nt->que_pool[QUE_ID_GAMELOGIC_2_NETLOGIC];
+//				printf("@@----gamelogicgame->net queue:%d\n",&nt->que_pool[QUE_ID_GAMELOGIC_2_NETLOGIC]);
+				nt->check_que = true;
+				nt->current_serice = sv;
 
 				if(eve->read)
 				{
@@ -551,8 +571,8 @@ static int netlogic_lisen_creat(net_logic* nl)
     bzero(&serv_addr,sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;   //ipv4
     serv_addr.sin_addr.s_addr = inet_addr(nl->serv_addr);
-    serv_addr.sin_port = htons(nl->port_service_listen);      //主机->网络 nl->serv_port
-    printf("::::::::net route service: listen port = %d::::::::::::::\n",nl->port_service_listen);
+    serv_addr.sin_port = htons(nl->serv_port);      //主机->网络 nl->serv_port
+    printf(":::::::net route service: listen port = %d::::::::::\n",nl->serv_port);
 
     int optval = 1;
     if(setsockopt(listen_fd,SOL_SOCKET,SO_REUSEADDR,&optval,sizeof(optval)) == -1)
@@ -593,9 +613,7 @@ static int connect_netio_service(net_logic* nl,char* netio_addr,int netio_port)
 
     memset(&netlog_service_addr,0,sizeof(netlog_service_addr));
     netlog_service_addr.sin_family = AF_INET;
-    netlog_service_addr.sin_port = htons(nl->port_2_netlogic);		//8001
-
-//    printf("netio:port=%d\n",PORT_NETLOG_2_NETIO_SERVICE);
+    netlog_service_addr.sin_port = htons(PORT_NETROUTE_2_NETIO_SERVICE);		
 
 	int optval = 1;
 	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1)
@@ -616,7 +634,7 @@ static int connect_netio_service(net_logic* nl,char* netio_addr,int netio_port)
     netio_server_addr.sin_family = AF_INET;
     netio_server_addr.sin_port = htons(netio_port);
     netio_server_addr.sin_addr.s_addr = inet_addr(netio_addr);
-
+    printf("\n\n\n\nnet route:connect address = %s port = %d\n",netio_addr,netio_port);
     for( ;; )
     {
 	    if((connect(sockfd,(struct sockaddr*)(&netio_server_addr),sizeof(struct sockaddr))) == -1)
@@ -743,28 +761,8 @@ static int service_connect_establish(net_logic_start* start,net_logic* nl)
 	return 0;
 }
 
-//configure* config,
-net_logic_start* net_logic_start_creat(queue* que_pool,configure* conf,int service_id)
-{
-	net_logic_start* start = malloc(sizeof(net_logic_start));
-	if(start == NULL)
-	{
-       fprintf(ERR_FILE,"net_logic_start_creat:start malloc failed\n");
-       return NULL;			
-	}
 
-	start->que_pool = que_pool;
-	start->service_id = service_id;
-	start->netio_addr = conf->service_address;
-	start->netio_port = conf->service_port;
 
-	start->netlog_addr = conf->service_address;
-	start->port_service_listen = conf->service_route_port; //监听的 address 和 socket
-
-	start->netlog_port = PORT_NETROUTE_2_NETIO_SERVICE;		//固定了
-
-	return start;
-}
 
 void* net_logic_service_loop(void* arg)
 {

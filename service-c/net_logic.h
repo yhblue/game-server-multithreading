@@ -2,6 +2,7 @@
 #define _NET_LOGIC_
 
 #include "lock_queue.h"
+#include "configure.h"
 
 #define MESSAGE_QUEUE_NUM    7
 
@@ -40,15 +41,16 @@ typedef struct _net_logic_start
 {
 	queue* que_pool;
 	int service_id;	
+
 	char* netio_addr;
 	int netio_port;
-	char* netlog_addr;
-	int netlog_port;
-	int port_2_netlogic;
+	
+	char* service_addr;
+	int service_port;
 }net_logic_start;
 
 
 queue* message_que_creat();
-net_logic_start* net_logic_start_creat(queue* que_pool);
+net_logic_start* net_logic_start_creat(queue* que_pool,configure* conf,int service_id);
 void* net_logic_service_loop(void* arg);
 #endif

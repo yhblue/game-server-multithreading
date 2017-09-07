@@ -13,11 +13,12 @@ const char* service_address = "service_address";
 const char* service_port = "service_port";
 const char* service_route_port = "service_route_port";
 
+const char* conf_file = "../config/config";
+
 #define STRING_EQUAL  0
 
 int configure_transform(configure* conf,char* key,char* val)
 {
-    configure* conf = (configure*)malloc(sizeof(configure));
     if(conf == NULL)
         return -1;
 
@@ -36,7 +37,6 @@ int configure_transform(configure* conf,char* key,char* val)
         conf->service_route_port = atoi(val);
         return 0;
     }
-  
     return -1;
 }
 
@@ -60,8 +60,12 @@ configure* configure_load(const char* config_path)
     if (file == NULL)
     {
         printf("open %s failed.\n", config_path);
-        return -1;
+        return NULL;
     }
+
+    configure* conf = (configure*)malloc(sizeof(configure));
+    if(conf == NULL)
+        return NULL;
 
     char buf[MAX_BUF_LEN];
 
@@ -121,9 +125,14 @@ configure* configure_load(const char* config_path)
                 break;
             val[vlen++] = buf[i];
         }
-        printf("%s=%s\n", key, val);
+        //printf("%s=%s\n", key, val);
         configure_transform(conf,key,val);
+
     }
+    printf("\n\n\nservice_address = %s\n",conf->service_address);
+    printf("service_port= %d\n",conf->service_port);
+    printf("service_route_port= %d\n",conf->service_route_port);
+
     return conf;
 }
 
