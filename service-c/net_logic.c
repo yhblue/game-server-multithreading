@@ -51,6 +51,8 @@
 #define HEAD_PROTO_TYPE_INDEX		0
 #define HEAD_PROTO_SIZE_INDEX		1
 
+
+
 typedef struct _pack_head
 {
 	char msg_type;    //记录哪种消息类型，'D' 数据 'S' 新用户 'C' 客户端关闭
@@ -64,16 +66,6 @@ typedef struct _service
 	int type;
 }service;
 
-typedef struct _send_game_pack
-{
-	q_node qnode;
-}data2_game;
-
-typedef struct _imform2_game
-{
-	char msg_type;    //记录哪种消息类型，'D' 数据 'S' 新用户 'C' 客户端关闭
-	int uid;     	  //socket的id(或者说是用户的id)
-}imform2_game;
 
 typedef struct _router
 {
@@ -110,6 +102,21 @@ typedef struct _deserialize
 	char* buffer;    	//存放反序列化之后的数据
 }deserialize;
 
+msg_head* msg_head_create(char msg_type,char proto_type,int uid,int len)
+{
+	msg_head* head = (msg_head*)malloc(sizeof(msg_head));
+	if(head == NULL)
+	{
+		return NULL;
+	}
+    head->msg_type = msg_type;
+    head->proto_type = proto_type;
+    head->uid = uid;
+    head->len = len;	
+
+    return head;
+
+}
 
 queue* message_que_creat()
 {
@@ -136,7 +143,6 @@ uint8_t route_distribute_gamelogic(net_logic* nl)
 	uint8_t ret = (nl->route.online_player[id1] < nl->route.online_player[id2])? id1 : id2;
 
 	return ret;
-//	return 0;
 }
 
 //SOCKET_SUCCESS
@@ -350,49 +356,48 @@ static int send_msg_2_game_logic(net_logic* nl,q_node* qnode,int uid) //socket_i
 
 static q_node* pack_user_data(deserialize* desseria_data,int uid_pack,char type_pack)
 {
-	q_node* qnode = (q_node*)malloc(sizeof(q_node));
+	msg_head* head = msg_head_create(type_pack,desseria_data->proto_type,uid_pack,INVALID);
+	if(head == NULL)
+	{
+		fprintf(ERR_FILE,"pack_user_data:head malloc failed\n");
+		return NULL;
+	}
+	q_node* qnode = qnode_create(head,desseria_data->buffer,NULL);
 	if(qnode == NULL)
 	{
 		fprintf(ERR_FILE,"pack_user_data:qnode malloc failed\n");
 		return NULL;
-	}
-
-	qnode->msg_type = type_pack;
-	qnode->uid = uid_pack;
-	qnode->len = 0;
-	qnode->next = NULL;
-
-	qnode->proto_type = desseria_data->proto_type;
-	qnode->buffer = desseria_data->buffer; 
-
+	}	
 	return qnode;
 }
 
+//msg_head_create(type_pack,desseria_data->proto_type,uid_pack,INVALID);
+
 static q_node* pack_inform_data(int uid_pack,char type_pack)
 {
-	q_node* qnode = (q_node*)malloc(sizeof(q_node));
+	msg_head* head = msg_head_create(type_pack,INVALID,uid_pack,INVALID);
+	if(head == NULL)
+	{
+		fprintf(ERR_FILE,"pack_user_data:head malloc failed\n");
+		return NULL;
+	}
+
+	q_node* qnode = qnode_create(head,NULL,NULL);
 	if(qnode == NULL)
 	{
 		fprintf(ERR_FILE,"pack_user_data:qnode malloc failed\n");
 		return NULL;
-	}
-
-	qnode->msg_type = type_pack;
-	qnode->uid = uid_pack;  			//只有这两个数据有用
-	qnode->len = 0;
-	qnode->proto_type = 0;
-	qnode->buffer = NULL; 
-	qnode->next = NULL;					
-
+	}		
 	return qnode;
 }
 
 static int dispose_netio_service_que(net_logic* nl,q_node* qnode)
 {
-	char type = qnode->msg_type;  		// 'D' 'S' 'C'
-	int uid = qnode->uid;
+	char type = qnode->head->msg_type;  		// 'D' 'S' 'C'
+	int uid = qnode->head->uid; 				
+	int content_len = qnode->head->len; 		//内容的长度(即客户端原始发送上来的数据的长度)	
 	unsigned char* data = qnode->buffer;
-	int content_len = qnode->len; 		//内容的长度(即客户端原始发送上来的数据的长度)	
+	
 	printf("-----dispose_netio_service_que,type = %c -------\n",type);
 	switch(type)
 	{

@@ -31,6 +31,7 @@
 #define GAME_LOGIC_SERVER_THIRD     2
 #define GAME_LOGIC_SERVER_FOURTH    3
 
+#define INVALID 					0
 
 typedef struct _net_logic_start
 {
@@ -44,10 +45,24 @@ typedef struct _net_logic_start
 	int service_port;
 }net_logic_start;
 
+//网关服务中网络IO处理线程与事务处理线程通信的数据类型约定
+//消息队列的双方的通信约定
+#define TYPE_DATA     'D'   //普通数据包
+#define TYPE_CLOSE    'C'   //客户端关闭
+#define TYPE_SUCCESS  'S'   //新客户端完全登陆成功
 
+
+typedef struct _msg_head
+{
+    char msg_type;           //'D' 'S' 'C'
+    char proto_type;         //for client data ,is serilia type,for inform is 
+    int uid;                 //socket uid
+    int len;                 //for data is buffer length,for other is 0 
+}msg_head;
 
 
 queue* message_que_creat();
+msg_head* msg_head_create(char msg_type,char proto_type,int uid,int len);
 net_logic_start* net_logic_start_creat(queue* que_pool,configure* conf,int service_id);
 void* net_logic_service_loop(void* arg);
 #endif

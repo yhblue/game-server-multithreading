@@ -704,7 +704,9 @@ static q_node* dispose_event_result(struct socket_server* ss,struct socket_messa
 	switch(type)
 	{
 		case SOCKET_DATA:
+
 			qnode = set_qnode(buf,TYPE_DATA,0,uid,len,NULL);
+			qnode = 
 			printf("netio push data to queue\n");
 			break;
 
