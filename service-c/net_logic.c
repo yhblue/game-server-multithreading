@@ -5,6 +5,7 @@
 #include "proto.h"
 #include "socket_server.h"
 #include "configure.h"
+#include "game_logic.h"
 #include "port.h"
 #include "err.h"
 
@@ -424,6 +425,62 @@ static int dispose_netio_service_que(net_logic* nl,q_node* qnode)
 	return 0;	
 } 
 
+// typedef struct _broadcast_list
+// {
+// 	int broadcast_player_num;			//要广播的玩家数目
+// 	int uid_list[MAX_PLAYER_EACH_MAP];	//要广播的 uid 列表	
+// }broadcast_list;
+
+// typedef struct _broadcast_data
+// {
+// 	char proto_type;				//要打包的类型
+// 	void* buffer;					//要打包的数据
+// }broadcast_data;
+
+// typedef struct _broadcast
+// {
+// 	broadcast_list list;			//要广播的成员列表
+// 	broadcast_data data;			//要发送的数据
+// }broadcast;
+
+/*
+qnode 
+{
+	void* head;
+	void* buffer;
+};
+*/
+
+//这个处理函数功能就是:
+//对数据根据proto_type进行protobuf的序列化->打包成 proto_type + len + seria_data 数据 ->push到socket的发送服务
+int dispose_game_service_que(net_logic* nl,q_node* qnode)
+{
+	char proto_type = qnode->buffer->data.proto_type;
+	void* data = qnode->buffer->data.buffer;
+	uint8_t pack_size = 0;
+	switch(proto_type)
+	{
+		case LOG_RSP:
+			pack_size = login_rsp_get_packed_size(data);
+			break;
+
+		case ENEMY_MSG:
+			break;
+
+		case LOGIN_END:
+			break;
+
+		case GAME_START_RSP:
+			break;
+
+		case NEW_ENEMY:
+			break;
+	}
+
+}
+
+
+
 static int dispose_queue_event(net_logic* nl)
 {
 	int service_type = nl->current_serice->type;
@@ -441,6 +498,7 @@ static int dispose_queue_event(net_logic* nl)
 				break;
 
 			case SERVICE_TYPE_GAME_LOGIC:
+				dispose_game_service_que(nl,qnode);
 				printf("netlogic: dispose game queue\n");
 				break;
 
@@ -457,7 +515,7 @@ static int dispose_queue_event(net_logic* nl)
 	return 0;
 }
 
-static int dispose_threading_read_msg(net_logic* nt,service* sv)
+static int dispose_service_read_msg(net_logic* nt,service* sv)
 {
 	char buf[64] = {0};
 	int n = read(sv->sock_fd,buf,sizeof(buf));  //写到了这里接着写下去
@@ -526,31 +584,21 @@ static int net_logic_event(net_logic *nt)
 				nt->check_que = true;
 				if(eve->read)
 				{
-					int type = dispose_threading_read_msg(nt,sv);
-					printf("type = SERVICE_TYPE_NET_IO,netlogic epoll work\n");
+					int type = dispose_service_read_msg(nt,sv);
+					printf("SERVICE_TYPE = SERVICE_TYPE_NET_IO,netlogic epoll work\n");
 					return type;
 				}
 				break;
 
 			case SERVICE_TYPE_GAME_LOGIC: 	//游戏逻辑处理进程，去处理广播信息		
 				nt->current_que = &nt->que_pool[QUE_ID_GAMELOGIC_2_NETLOGIC];
-//				printf("@@----gamelogicgame->net queue:%d\n",&nt->que_pool[QUE_ID_GAMELOGIC_2_NETLOGIC]);
-				nt->check_que = true;
 				nt->current_serice = sv;
-
+				nt->check_que = true;
 				if(eve->read)
 				{
-					int type = dispose_threading_read_msg(nt,sv);
-					printf("type = SERVICE_TYPE_GAME_LOGIC,netlogic epoll work\n");
+					int type = dispose_service_read_msg(nt,sv);
+					printf("SERVICE_TYPE = SERVICE_TYPE_GAME_LOGIC,netlogic epoll work\n");
 					return type;
-				}
-				if(eve->write)
-				{
-
-				}
-				if(eve->error)
-				{
-
 				}
 				break;
 		}
@@ -640,7 +688,6 @@ static int connect_netio_service(net_logic* nl,char* netio_addr,int netio_port)
 	    if((connect(sockfd,(struct sockaddr*)(&netio_server_addr),sizeof(struct sockaddr))) == -1)
 	    {
 	        fprintf(ERR_FILE,"netlogic:connect_netio_service:netlogic_thread disconnect\n");
-	        //return -1;
 	        sleep(1);
 	    }
 	    else
@@ -800,8 +847,6 @@ void* net_logic_service_loop(void* arg)
 			case EVENT_THREAD_DISCONNECT:
 				break;
 		}
-		// printf("net_logic_service_loop running!\n");
-		// sleep(10);
 	}
 	return NULL;
 }

@@ -14,9 +14,3 @@ configure* configure_load(const char* config_path);
 
 #endif
 
-// int netlogic_service_port;
-// int game01_service_port;
-// int game02_service_port;
-// int game03_service_port;
-// int game04_service_port;
-// int netlogic_listen_port;   

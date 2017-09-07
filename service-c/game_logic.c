@@ -338,7 +338,6 @@ static int game_route_append(game_logic* gl,int uid)
 					gl->route->uid_2_playid[uid].mapid = map_id;
 					gl->route->uid_2_playid[uid].map_playerid = id_in_map;	   
 					gl->route->map_player_socket_uid[map_id][id_in_map] = uid; 		//记录这个uid，用于广播
-					//gl->route->map_player_num[map_id] ++;
 				    gl->route->player_num ++;			                       		//游戏逻辑服人数自增		
 					// 当游戏开始时候才更新地图中玩家数目,但是让 gl->route->player_num 先增加，标记这个游戏逻辑服人数已经增加
 					printf("~~~~~~game: uid = %d map_id = %d,map_playerid = %d gl->route->map_player_num=%d~~~~~~~~~\n",uid,map_id,id_in_map,gl->route->map_player_num[map_id]);

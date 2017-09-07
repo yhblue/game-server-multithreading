@@ -18,9 +18,9 @@
 #define HEART_REQ     		'R'
 #define HEART_RSP     		'r'
 
-#define ENEMY_MSG     		'e'
+#define ENEMY_MSG     		'e'  //ENEMY_MSG这个信息存储的应该是登陆时候发送的,广播时候应该用另一个才对
 
-#define NEW_ENEMY     		'n'
+#define NEW_ENEMY     		'n'  
 
 #define GAME_START_RSP    	's'
 
@@ -106,5 +106,24 @@ static login_end* login_end_creat(bool end)
 	return rsp;
 }
 
+//***********************************************************************************************************//
+
+static inline
+size_t login_rsp_get_packed_size(const login_rsp *message)
+{
+	return login_rsp__get_packed_size(message);
+}
+
+static inline
+size_t login_rsp_pack(const login_rsp *message,uint8_t* out)
+{
+	return login_rsp__pack(message,out);
+}
+
+static inline
+login_rsp* login_rsp_unpack(ProtobufCAllocator  *allocator,size_t len,const uint8_t* data)
+{
+	return login_rsp__unpack(allocator,len,data);
+}
 
 #endif
