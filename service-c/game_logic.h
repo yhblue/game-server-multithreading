@@ -57,14 +57,15 @@ typedef struct _game_logic_start
 	queue* que_pool;
 	int service_id;	
 	int service_port;
-	char* netlog_addr;
-	int netlog_port;
-	game_router* route;
+	char* service_route_addr; 	//路由服务的addr
+	int service_route_port;   	//路由服务的port
+	player_id* uid_2_playid;
 	int game_service_id;
+
 }game_logic_start;
 
 player_id* playerid_list_creat(void);
-game_logic_start* game_logic_start_creat(queue* que_pool,game_router* route,int service_id,char* netlog_addr,int netlog_port,int serv_port,int game_service_id);
+game_logic_start* game_logic_start_creat(queue* que_pool,configure* conf,player_id* uid_2_playid,int service_id);
 void* game_logic_service_loop(void* arg);
 
 #endif

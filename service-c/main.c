@@ -14,20 +14,20 @@ int main()
 	queue* que_pool = message_que_creat();
 
 	//网络IO线程
-	net_io_start* netio_start = net_io_start_creat(que_pool,0,"127.0.0.1",8000);
+	net_io_start* netio_start = net_io_start_creat(que_pool,conf);
 	pthread_create(&pthread_id[0],NULL,network_io_service_loop,netio_start);  
 
 	//网络路由线程
-	net_logic_start* netlog_start = net_logic_start_creat(que_pool);
+	net_logic_start* netlog_start = net_logic_start_creat(que_pool,conf);
 	pthread_create(&pthread_id[1],NULL,net_logic_service_loop,netlog_start); 
 
 	player_id* uid_2_playerid = playerid_list_creat();
 	if(uid_2_playerid == NULL) return -1;
 
-	game_logic_start* game_start01 = game_logic_start_creat(que_pool,route,SERVICE_ID_GAME_FIRST,"127.0.0.1",8001,8002,0);
-	game_logic_start* game_start02 = game_logic_start_creat(que_pool,route,SERVICE_ID_GAME_SECOND,"127.0.0.1",8001,8003,1);
-	game_logic_start* game_start03 = game_logic_start_creat(que_pool,route,SERVICE_ID_GAME_THIRD,"127.0.0.1",8001,8004,2);
-	game_logic_start* game_start04 = game_logic_start_creat(que_pool,route,SERVICE_ID_GAME_FOURTH,"127.0.0.1",8001,8005,3);
+	game_logic_start* game_start01 = game_logic_start_creat(que_pool,conf,uid_2_playid,SERVICE_ID_GAME_FIRST);
+	game_logic_start* game_start02 = game_logic_start_creat(que_pool,conf,uid_2_playid,SERVICE_ID_GAME_SECOND);
+	game_logic_start* game_start03 = game_logic_start_creat(que_pool,conf,uid_2_playid,SERVICE_ID_GAME_THIRD);
+	game_logic_start* game_start04 = game_logic_start_creat(que_pool,conf,uid_2_playid,SERVICE_ID_GAME_FOURTH);
 
 	pthread_create(&pthread_id[2],NULL,game_logic_service_loop,game_start01);
 	pthread_create(&pthread_id[3],NULL,game_logic_service_loop,game_start02);

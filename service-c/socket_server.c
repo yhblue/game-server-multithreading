@@ -4,6 +4,7 @@
 #include "socket_server.h"
 #include "socket_epoll.h"
 #include "lock_queue.h"
+#include "configure.h"
 #include "err.h"
 #include "port.h"
 
@@ -742,8 +743,8 @@ net_io_start* net_io_start_creat(queue* que_pool,configure* conf)
 	net_io_start* start = (net_io_start*)malloc(sizeof(net_io_start));
 	start->que_pool = que_pool;
 	start->service = SERVICE_ID_NETWORK_IO;
-	start->address = conf->service_address;
-	start->port = conf->service_port;
+	start->address = conf->service_address; //这个没错,不需要修改
+	start->port = conf->service_port;	
 
 	return start;
 }
@@ -767,7 +768,7 @@ static int wait_netlogic_service_connect(struct socket_server* ss)
 		{
 			int port = ntohs(addr.sin_port);  //客户端的端口
 			printf("netio dispatch accept,port = %d\n",port);
-			if(port == PORT_NETLOG_2_NETIO_SERVICE) //必须是这个端口
+			if(port == PORT_NETROUTE_2_NETIO_SERVICE) //必须是这个端口
 			{
 				printf("netio accept netlogic socket is = %d\n",socket);
 				socket_keepalive(socket);

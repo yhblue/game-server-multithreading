@@ -11,21 +11,15 @@
 
 const char* service_address = "service_address";
 const char* service_port = "service_port";
-
-const char* netlogic_service_port = "netlogic_service_port";
-const char* game01_service_port = "game01_service_port";
-const char* game02_service_port = "game02_service_port";
-const char* game03_service_port = "game03_service_port";
-const char* game04_service_port = "game04_service_port";
-const char* netlogic_listen_port = "netlogic_listen_port";
-
+const char* service_route_port = "service_route_port";
 
 #define STRING_EQUAL  0
 
-
 int configure_transform(configure* conf,char* key,char* val)
 {
-    if(conf == NULL) return -1;
+    configure* conf = (configure*)malloc(sizeof(configure));
+    if(conf == NULL)
+        return -1;
 
     if(strcmp(key,service_address) == STRING_EQUAL)
     {
@@ -37,36 +31,12 @@ int configure_transform(configure* conf,char* key,char* val)
         conf->service_port = atoi(val);
         return 0;
     }
-    if(strcmp(key,netlogic_service_port) == STRING_EQUAL)
+    if(strcmp(key,service_route_port) == STRING_EQUAL)
     {
-        conf->netlogic_service_port = atoi(val);
+        conf->service_route_port = atoi(val);
         return 0;
     }
-    if(strcmp(key,game01_service_port) == STRING_EQUAL)
-    {
-        conf->game01_service_port = atoi(val);
-        return 0;
-    }
-    if(strcmp(key,game02_service_port) == STRING_EQUAL)
-    {
-        conf->game02_service_port = atoi(val);
-        return 0;
-    }
-    if(strcmp(key,game03_service_port) == STRING_EQUAL)
-    {
-        conf->game03_service_port = atoi(val);
-        return 0;
-    }
-    if(strcmp(key,game04_service_port) == STRING_EQUAL)
-    {
-        conf->game04_service_port = atoi(val);
-        return 0;
-    }   
-    if(strcmp(key,netlogic_listen_port) == STRING_EQUAL)
-    {
-        conf->netlogic_listen_port = atoi(val);
-        return 0;
-    }   
+  
     return -1;
 }
 
@@ -92,9 +62,6 @@ configure* configure_load(const char* config_path)
         printf("open %s failed.\n", config_path);
         return -1;
     }
-    configure* conf = (configure*)malloc(sizeof(configure));
-    if(conf == NULL)
-        return NULL;
 
     char buf[MAX_BUF_LEN];
 
@@ -161,6 +128,8 @@ configure* configure_load(const char* config_path)
 }
 
 
+
+#if 0 
 int main()
 {
     configure* conf = configure_load("./test.conf");
@@ -180,3 +149,38 @@ int main()
     }
     return 0;
 }
+
+// const char* netlogic_service_port = "netlogic_service_port";
+// const char* game01_service_port = "game01_service_port";
+// const char* game02_service_port = "game02_service_port";
+// const char* game03_service_port = "game03_service_port";
+// const char* game04_service_port = "game04_service_port";
+// const char* netlogic_listen_port = "netlogic_listen_port";
+
+    if(strcmp(key,game01_service_port) == STRING_EQUAL)
+    {
+        conf->game01_service_port = atoi(val);
+        return 0;
+    }
+    if(strcmp(key,game02_service_port) == STRING_EQUAL)
+    {
+        conf->game02_service_port = atoi(val);
+        return 0;
+    }
+    if(strcmp(key,game03_service_port) == STRING_EQUAL)
+    {
+        conf->game03_service_port = atoi(val);
+        return 0;
+    }
+    if(strcmp(key,game04_service_port) == STRING_EQUAL)
+    {
+        conf->game04_service_port = atoi(val);
+        return 0;
+    }   
+    if(strcmp(key,netlogic_listen_port) == STRING_EQUAL)
+    {
+        conf->netlogic_listen_port = atoi(val);
+        return 0;
+    } 
+
+#endif

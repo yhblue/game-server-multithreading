@@ -1,12 +1,13 @@
 #include "net_logic.h"
 #include "message.pb-c.h"
 #include "lock_queue.h"
-#include "err.h"
 #include "socket_epoll.h"
 #include "configure.h"
 #include "proto.h"
 #include "socket_server.h"
+#include "configure.h"
 #include "port.h"
+#include "err.h"
 
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -97,7 +98,7 @@ typedef struct _net_logic
 	int listen_fd;
 	char* serv_addr;
 	int serv_port;
-	int port_2_netlogic;
+	int port_service_listen;				//用于监听其他服务连接的port
 	bool socket_send;						//为 true 才会向另一个服务发送一个字节的信息，唤醒对方，然后立刻
 											//修改为false,只有当对方服务进入了休眠状态，在进入之前发送一个字节给
 }net_logic;									//自己，告诉它已经进入休眠，修改为true
@@ -302,7 +303,7 @@ static net_logic* net_logic_creat(net_logic_start* start)
 	nt->serv_port = start->netlog_port;
 	nt->serv_addr = start->netlog_addr;
 
-	nt->port_2_netlogic = start->port_2_netlogic;
+	nt->port_service_listen = start->port_service_listen;
 	return nt;
 }
 
@@ -551,7 +552,8 @@ static int netlogic_lisen_creat(net_logic* nl)
     bzero(&serv_addr,sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;   //ipv4
     serv_addr.sin_addr.s_addr = inet_addr(nl->serv_addr);
-    serv_addr.sin_port = htons(PORT_NETLOG_LISTENING);      //主机->网络 nl->serv_port
+    serv_addr.sin_port = htons(nl->port_service_listen);      //主机->网络 nl->serv_port
+    printf("::::::::net route service: listen port = %d::::::::::::::\n",nl->port_service_listen);
 
     int optval = 1;
     if(setsockopt(listen_fd,SOL_SOCKET,SO_REUSEADDR,&optval,sizeof(optval)) == -1)
@@ -758,8 +760,9 @@ net_logic_start* net_logic_start_creat(queue* que_pool,configure* conf)
 	start->netio_port = conf->service_port;
 
 	start->netlog_addr = conf->service_address;
-	start->netlog_port = conf->netlogic_service_port;
-	start->port_2_netlogic = conf->netlogic_listen_port;
+	start->netlog_port = PORT_NETROUTE_2_NETIO_SERVICE;		//固定了
+	start->port_service_listen = conf->service_route_port; 	
+	printf("net route service: port_service_listen = %d",start->port_service_listen);
 	return start;
 }
 

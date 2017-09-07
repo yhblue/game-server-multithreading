@@ -2,6 +2,7 @@
 #include "socket_server.h"
 #include "message.pb-c.h"
 #include "net_logic.h"
+#include "configure.h"
 #include "err.h"
 #include "port.h"
 #include "proto.h"
@@ -86,17 +87,23 @@ typedef struct _game_logic
 
 player_id* playerid_list_creat(void)
 {
-	player_id* uid_2_playerid = (player_id*)malloc(sizeof(player_id) * MAX_SOCKET);
-	if(uid_2_playerid == NULL)
+	player_id* uid_2_playid = (player_id*)malloc(sizeof(player_id) * MAX_SOCKET);
+	if(uid_2_playid == NULL)
 	{
-		fprintf(ERR_FILE,"playerid_list_creat:uid_2_playerid malloc failed\n");
+		fprintf(ERR_FILE,"playerid_list_creat:uid_2_playid malloc failed\n");
 		return NULL;		
 	}
-	return uid_2_playerid;
+	for(int i=0; i<MAX_SOCKET; i++)
+	{
+		uid_2_playid[i].state = STATE_TYPE_INVALID;
+		uid_2_playid[i].mapid = 0;
+		uid_2_playid[i].map_playerid = 0;
+	}
+	return uid_2_playid;
 }
 
 
-static int game_route_table_creat(game_logic* gl)
+static int game_route_table_creat(game_logic* gl,game_logic_start* start)
 {
 	gl->route = (game_router*)malloc(sizeof(game_router));
 
@@ -106,18 +113,20 @@ static int game_route_table_creat(game_logic* gl)
 		return -1;   		
 	}
 
-	gl->route->uid_2_playid = (player_id*)malloc(sizeof(player_id) * MAX_SOCKET); //uid->playerid 的映射表
-	if(gl->route->uid_2_playid == NULL)											  //可能以后会从主线程中传递进来
-	{
-		fprintf(ERR_FILE,"game_route_table_creat:route malloc failed\n");
-		return -1;    			
-	}
-	for(int i=0; i<MAX_SOCKET; i++)
-	{
-		gl->route->uid_2_playid[i].state = STATE_TYPE_INVALID;
-		gl->route->uid_2_playid[i].mapid = 0;
-		gl->route->uid_2_playid[i].map_playerid = 0;
-	}
+	// gl->route->uid_2_playid = (player_id*)malloc(sizeof(player_id) * MAX_SOCKET); //uid->playerid 的映射表
+	// if(gl->route->uid_2_playid == NULL)											  //可能以后会从主线程中传递进来
+	// {
+	// 	fprintf(ERR_FILE,"game_route_table_creat:route malloc failed\n");
+	// 	return -1;    			
+	// }
+	// for(int i=0; i<MAX_SOCKET; i++)
+	// {
+	// 	gl->route->uid_2_playid[i].state = STATE_TYPE_INVALID;
+	// 	gl->route->uid_2_playid[i].mapid = 0;
+	// 	gl->route->uid_2_playid[i].map_playerid = 0;
+	// }
+	gl->route->uid_2_playid = start->uid_2_playid;
+
 	gl->route->player_num = 0;
 	for(int i=0; i<MAX_MAP; i++)
 	{
@@ -153,17 +162,38 @@ static int game_route_table_creat(game_logic* gl)
 	return 0;
 }
 
-game_logic_start* game_logic_start_creat(queue* que_pool,game_router* route,int service_id,char* netlog_addr,int netlog_port,int serv_port,int game_service_id)
+game_logic_start* game_logic_start_creat(queue* que_pool,configure* conf,player_id* uid_2_playid,int service_id)
 {
 	game_logic_start* start = (game_logic_start*)malloc(sizeof(game_logic_start));
 	start->que_pool = que_pool;
 	start->que_2_net_logic = &que_pool[QUE_ID_GAMELOGIC_2_NETLOGIC];
-	start->service_id = service_id;
-	start->service_port = serv_port;
-	start->netlog_addr = netlog_addr;
-	start->netlog_port = netlog_port;
-	start->route = route;
-	start->game_service_id = game_service_id;
+	switch(service_id)
+	{
+		case SERVICE_ID_GAME_FIRST:
+			start->game_service_id = GAME_LOGIC_SERVER_FIRST;
+			start->service_port = PORT_GAME_LOGIC_SERVICE_FIRST;
+			break;
+
+		case SERVICE_ID_GAME_SECOND:
+			start->game_service_id = GAME_LOGIC_SERVER_SECOND;
+			start->service_port = PORT_GAME_LOGIC_SERVICE_SECOND;
+			break;		
+		
+		case SERVICE_ID_GAME_THIRD:
+			start->game_service_id = GAME_LOGIC_SERVER_THIRD;
+			start->service_port = PORT_GAME_LOGIC_SERVICE_THIRD;
+			break;	
+
+		case SERVICE_ID_GAME_FOURTH:
+			start->game_service_id = GAME_LOGIC_SERVER_FOURTH;
+			start->service_port = PORT_GAME_LOGIC_SERVICE_FOURTH;
+			break;	
+	}
+	start->service_route_addr = conf->service_address;
+	start->service_route_port = conf->service_route_port;	//路由的端口
+
+	start->uid_2_playid = uid_2_playid;
+	start->service_id = service_id; 				
 	return start;
 }
 
@@ -176,12 +206,15 @@ static queue* distribute_game_service_que(game_logic* gl,game_logic_start* start
 		case GAME_LOGIC_SERVER_FIRST:
 			que = &(start->que_pool[QUE_ID_NETLOGIC_2_GAME_FIRST]);
 			break;
+
 		case GAME_LOGIC_SERVER_SECOND:
 			que = &(start->que_pool[QUE_ID_NETLOGIC_2_GAME_SECOND]);
 			break;
+
 		case GAME_LOGIC_SERVER_THIRD:
 			que = &(start->que_pool[QUE_ID_NETLOGIC_2_GAME_THIRD]);
 			break;
+
 		case GAME_LOGIC_SERVER_FOURTH:
 			que = &(start->que_pool[QUE_ID_NETLOGIC_2_GAME_FOURTH]);
 			break;
@@ -207,9 +240,9 @@ static game_logic* game_logic_creat(game_logic_start* start)
 		}
 	}
 
-//	gl->route = start->route;
 	gl->netlog_addr = start->netlog_addr;
-	gl->netlog_port = start->netlog_port;
+	gl->service_route_port = start->service_route_port;
+
 	gl->service_port = start->service_port;
 	gl->game_service_id = start->game_service_id;
 
@@ -221,7 +254,7 @@ static game_logic* game_logic_creat(game_logic_start* start)
 	gl->check_que = false;
 	gl->service_que = distribute_game_service_que(gl,start);
 	gl->que_2_net_logic = &start->que_pool[QUE_ID_GAMELOGIC_2_NETLOGIC];
-	game_route_table_creat(gl);
+	game_route_table_creat(gl,start);
 	FD_ZERO(&gl->select_set); 
 
 	return gl;
@@ -717,7 +750,7 @@ static int connect_netlogic_service(game_logic* gl)
     //set service address
     memset(&netlog_service_addr,0,sizeof(netlog_service_addr));
     netlog_service_addr.sin_family = AF_INET;
-    netlog_service_addr.sin_port = htons(PORT_NETLOG_LISTENING);
+    netlog_service_addr.sin_port = htons(gl->service_route_port);
     netlog_service_addr.sin_addr.s_addr = inet_addr(gl->netlog_addr);
 
     for( ;; )
