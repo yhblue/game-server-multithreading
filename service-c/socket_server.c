@@ -161,6 +161,7 @@ static int do_listen(const char* host,int port,int max_connect)
     serv_addr.sin_family = AF_INET;  	//ipv4
     serv_addr.sin_addr.s_addr = inet_addr(host);
     serv_addr.sin_port = htons(port);              //主机->网络
+    printf(":::::::network io service listen port = %d:::::::::\n",port);
 
     int optval = 1;
     if(setsockopt(listen_fd,SOL_SOCKET,SO_REUSEADDR,&optval,sizeof(optval)) == -1)
@@ -533,8 +534,6 @@ static struct socket_server* socket_server_create(net_io_start* start)
 	return ss;
 }
 
-
-
 static int socket_server_listen(struct socket_server *ss,const char* host,int port,int backlog)
 {
 	int listen_fd = do_listen(host,port,backlog);
@@ -738,11 +737,11 @@ static void send_client_msg2net_logic(struct socket_server* ss,q_node* qnode)
 }
 
 //这里应该不要传递那么多参数，直接传递读配置文件后返回的指针吧
-net_io_start* net_io_start_creat(queue* que_pool,configure* conf)
+net_io_start* net_io_start_creat(queue* que_pool,configure* conf,int service_id)
 {
 	net_io_start* start = (net_io_start*)malloc(sizeof(net_io_start));
 	start->que_pool = que_pool;
-	start->service = SERVICE_ID_NETWORK_IO;
+	start->service_id = service_id;
 	start->address = conf->service_address; //这个没错,不需要修改
 	start->port = conf->service_port;	
 

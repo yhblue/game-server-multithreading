@@ -23,7 +23,8 @@ struct socket_message {
 typedef struct _net_io_start
 {
 	queue* que_pool;
-	int thread_id;
+	int service_id;
+
 	int port;
 	char* address;
 }net_io_start;
@@ -38,7 +39,7 @@ typedef struct _net_io_start
 // net_io_start* net_io_start_creat(double_que* que_pool,int thread_id,char*address,int port);
 void socket_keepalive(int fd);
 int send_msg2_service(int socket);
-net_io_start* net_io_start_creat(queue* que_pool,int thread_id,char*address,int port);
+net_io_start* net_io_start_creat(queue* que_pool,configure* conf,int service_id);
 void* network_io_service_loop(void* arg);
 
 #endif

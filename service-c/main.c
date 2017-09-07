@@ -14,11 +14,11 @@ int main()
 	queue* que_pool = message_que_creat();
 
 	//网络IO线程
-	net_io_start* netio_start = net_io_start_creat(que_pool,conf);
+	net_io_start* netio_start = net_io_start_creat(que_pool,conf,SERVICE_ID_NETWORK_IO);
 	pthread_create(&pthread_id[0],NULL,network_io_service_loop,netio_start);  
 
 	//网络路由线程
-	net_logic_start* netlog_start = net_logic_start_creat(que_pool,conf);
+	net_logic_start* netlog_start = net_logic_start_creat(que_pool,conf,SERVICE_ID_NET_ROUTE);
 	pthread_create(&pthread_id[1],NULL,net_logic_service_loop,netlog_start); 
 
 	player_id* uid_2_playerid = playerid_list_creat();

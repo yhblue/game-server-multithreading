@@ -238,7 +238,6 @@ static deserialize* unpack_user_data(unsigned char * data_pack,int len)
 	return data;
 }
 
-
 static net_logic* net_logic_creat(net_logic_start* start)
 {
 	net_logic *nt = (net_logic*)malloc(sizeof(net_logic));
@@ -745,7 +744,7 @@ static int service_connect_establish(net_logic_start* start,net_logic* nl)
 }
 
 //configure* config,
-net_logic_start* net_logic_start_creat(queue* que_pool,configure* conf)
+net_logic_start* net_logic_start_creat(queue* que_pool,configure* conf,int service_id)
 {
 	net_logic_start* start = malloc(sizeof(net_logic_start));
 	if(start == NULL)
@@ -755,14 +754,15 @@ net_logic_start* net_logic_start_creat(queue* que_pool,configure* conf)
 	}
 
 	start->que_pool = que_pool;
-	start->service_id = SERVICE_ID_NET_ROUTE;
+	start->service_id = service_id;
 	start->netio_addr = conf->service_address;
 	start->netio_port = conf->service_port;
 
 	start->netlog_addr = conf->service_address;
+	start->port_service_listen = conf->service_route_port; //监听的 address 和 socket
+
 	start->netlog_port = PORT_NETROUTE_2_NETIO_SERVICE;		//固定了
-	start->port_service_listen = conf->service_route_port; 	
-	printf("net route service: port_service_listen = %d",start->port_service_listen);
+
 	return start;
 }
 
