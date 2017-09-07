@@ -31,11 +31,6 @@
 #define GAME_LOGIC_SERVER_THIRD     2
 #define GAME_LOGIC_SERVER_FOURTH    3
 
-// typedef struct _double_que
-// {
-// 	queue* que_to;
-// 	queue* que_from;
-// }double_que;
 
 typedef struct _net_logic_start
 {
@@ -48,6 +43,8 @@ typedef struct _net_logic_start
 	char* service_addr;
 	int service_port;
 }net_logic_start;
+
+
 
 
 queue* message_que_creat();

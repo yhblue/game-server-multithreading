@@ -107,23 +107,170 @@ static login_end* login_end_creat(bool end)
 }
 
 //***********************************************************************************************************//
+//login_rsp:
+static inline
+void login_rsp_init(void* message)
+{
+	login_rsp__init(message);
+}
 
 static inline
-size_t login_rsp_get_packed_size(const login_rsp *message)
+size_t login_rsp_get_packed_size(void *message)
 {
 	return login_rsp__get_packed_size(message);
 }
 
 static inline
-size_t login_rsp_pack(const login_rsp *message,uint8_t* out)
+size_t login_rsp_pack(const void *message,uint8_t* out)
 {
 	return login_rsp__pack(message,out);
 }
 
 static inline
-login_rsp* login_rsp_unpack(ProtobufCAllocator  *allocator,size_t len,const uint8_t* data)
+void* login_rsp_unpack(ProtobufCAllocator  *allocator,size_t len,const uint8_t* data)
 {
 	return login_rsp__unpack(allocator,len,data);
 }
+
+//enemy_msg:
+static inline
+void enemy_msg_init(void* message)
+{
+	enemy_msg__init(message);
+}
+
+static inline
+size_t enemy_msg_get_packed_size(const void* message)
+{
+	return enemy_msg__get_packed_size(message);
+}
+
+static inline
+size_t enemy_msg_pack(const void* message,uint8_t* out)
+{ 
+	return enemy_msg__pack(message,out);
+}
+
+static inline
+void* enemy_msg__unpack(ProtobufCAllocator* allocator,size_t len,const uint8_t* data)
+{
+	return enemy_msg__unpack(allocator,len,data);
+}
+
+//StartReq:
+static inline
+void start_req_init(void* message)
+{
+	start_req__init(message);
+}
+
+static inline
+size_t start_req_get_packed_size(const void* *message)
+{
+	return start_req__get_packed_size(message);
+}
+
+static inline
+size_t start_req_pack(const void* message,uint8_t* out)
+{
+	return start_req__pack(message,out);
+}
+
+static inline
+void* start_req_unpack(ProtobufCAllocator  *allocator,size_t len,const uint8_t* data)
+{
+	return start_req__unpack(allocator,len,data);
+}
+
+
+//start_rsp
+static inline
+void start_rsp_init(void* message)
+{
+	start_rsp__init(message);
+}
+
+static inline
+size_t start_rsp_get_packed_size(const void* message)
+{
+	start_rsp__get_packed_size(message);
+}
+
+static inline
+size_t start_rsp_pack(const void* message,uint8_t* out)
+{
+	return start_rsp__pack(message,out);
+}
+
+static inline
+void* start_rsp_free_unpacked(void* message,ProtobufCAllocator *allocator)
+{
+	start_rsp__free_unpacked(message,allocator);
+}
+
+
+//new_enemy
+static inline
+void new_enemy_init(void* message)
+{
+	new_enemy__init(message);
+}
+
+static inline
+size_t new_enemy_get_packed_size(const void* message)
+{
+	return new_enemy__get_packed_size(message);
+}
+
+static inline
+size_t new_enemy_pack(const void* message,uint8_t* out)
+{
+	return new_enemy__pack(message,out);
+}
+
+static inline
+void* new_enemy_unpack(ProtobufCAllocator* allocator,size_t len,const uint8_t* data)
+{
+	return new_enemy__unpack(allocator,len,data);
+}
+
+static inline
+void new_enemy_free_unpacked(void* message,ProtobufCAllocator *allocator)
+{
+	new_enemy__free_unpacked(message,allocator);
+}
+
+
+static inline
+void login_end_init(void* message)
+{
+	login_end__init(message);
+}
+
+static inline
+size_t login_end_get_packed_size(const void* message)
+{
+	return login_end__get_packed_size(message);
+}
+
+static inline
+size_t login_end_pack(const void* message,uint8_t* out)
+{
+	return login_end__pack(message,out);
+}
+
+static inline
+void* login_end__unpack(ProtobufCAllocator* allocator,size_t len,const uint8_t* data)
+{
+	return login_end__unpack(allocator,len,data);
+}
+
+static inline
+void login_end_free_unpacked(void* message,ProtobufCAllocator* allocator)
+{
+	login_end__free_unpacked(message,allocator);
+}
+
+
 
 #endif

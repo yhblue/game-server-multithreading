@@ -45,9 +45,11 @@
 #define SERVICE_ID_GAME_THIRD       6
 #define SERVICE_ID_GAME_FOURTH      7
 
-
-
 #define PLAYER_TYPE_INVALID		   -1
+
+#define PROTO_HEAD_SIZE				2
+#define HEAD_PROTO_TYPE_INDEX		0
+#define HEAD_PROTO_SIZE_INDEX		1
 
 typedef struct _pack_head
 {
@@ -453,30 +455,119 @@ qnode
 
 //这个处理函数功能就是:
 //对数据根据proto_type进行protobuf的序列化->打包成 proto_type + len + seria_data 数据 ->push到socket的发送服务
-int dispose_game_service_que(net_logic* nl,q_node* qnode)
+static int dispose_game_service_que(net_logic* nl,q_node* qnode)
 {
-	char proto_type = qnode->buffer->data.proto_type;
-	void* data = qnode->buffer->data.buffer;
-	uint8_t pack_size = 0;
+	broadcast* broadcast_msg = qnode->buffer;
+	char proto_type = broadcast_msg->data.proto_type;
+	void* buffer = broadcast_msg->data.buffer;
+
+	void* rsp = NULL;
 	switch(proto_type)
 	{
 		case LOG_RSP:
-			pack_size = login_rsp_get_packed_size(data);
-			break;
+			rsp = log_rsp_data_pack(buffer);
+			break;			
 
 		case ENEMY_MSG:
+			rsp = enemy_msg_data_pack(buffer);
 			break;
 
 		case LOGIN_END:
+			rsp = login_end_data_pack(buffer);
 			break;
 
 		case GAME_START_RSP:
+			rsp = start_rsp_data_pack(buffer);
 			break;
 
 		case NEW_ENEMY:
+			rsp = new_enemy_data_pack(buffer);
 			break;
 	}
+	
+	q_node* node = (q_node*)malloc(q_node);
+	node->buffer = out_buf;
+	node->next = NULL;
+	//pack to qnode -> send to write
 
+
+	return 0;
+}
+
+char* log_rsp_data_pack(void* pack_data)
+{
+	login_rsp_init(pack_data);
+	int pack_size = login_rsp_get_packed_size(pack_data);
+	char* out_buf = (char*)malloc(pack_size + PROTO_HEAD_SIZE);
+	if(out_buf == NULL)
+		return NULL;
+
+	login_rsp_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
+	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
+	out_buf[HEAD_PROTO_SIZE_INDEX] = LOG_RSP;
+	printf("********TYPE = LOG_RSP,pack_size = %d**********\n",pack_size);
+
+	return out_buf;
+}
+
+char* enemy_msg_data_pack(void* pack_data)
+{
+	enemy_msg_init(pack_data);
+	int pack_size = enemy_msg_get_packed_size(pack_data);
+	char* out_buf = (char*)malloc(pack_size + PROTO_HEAD_SIZE);
+	if(out_buf == NULL)
+		return NULL;
+
+	enemy_msg_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
+	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
+	out_buf[HEAD_PROTO_SIZE_INDEX] = ENEMY_MSG;	
+
+	return out_buf;
+}
+
+char* start_rsp_data_pack(void* pack_data)
+{
+	start_rsp_init(pack_data);
+	int pack_size = start_rsp_get_packed_size(pack_data);
+	char* out_buf = (char*)malloc(pack_size + PROTO_HEAD_SIZE);
+	if(out_buf == NULL)
+		return NULL;
+
+	start_rsp_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
+	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
+	out_buf[HEAD_PROTO_SIZE_INDEX] = GAME_START_RSP;	
+
+	return out_buf;
+}
+
+char* new_enemy_data_pack(void* pack_data,char proto_type)
+{
+	new_enemy_init(pack_data);
+	int pack_size = new_enemy_get_packed_size(pack_data);
+	char* out_buf = (char*)malloc(pack_size + PROTO_HEAD_SIZE);
+	if(out_buf == NULL)
+		return NULL;
+
+	new_enemy_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
+	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
+	out_buf[HEAD_PROTO_SIZE_INDEX] = NEW_ENEMY;	
+
+	return out_buf;
+}
+
+char* login_end_data_pack(void* pack_data,char proto_type)
+{
+	login_end_init(pack_data);
+	int pack_size = login_end_get_packed_size(pack_data);
+	char* out_buf = (char*)malloc(pack_size + PROTO_HEAD_SIZE);
+	if(out_buf == NULL)
+		return NULL;
+
+	login_end_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
+	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
+	out_buf[HEAD_PROTO_SIZE_INDEX] = LOGIN_END;	
+
+	return out_buf;	
 }
 
 
