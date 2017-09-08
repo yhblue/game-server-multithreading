@@ -119,7 +119,11 @@ static struct socket* apply_socket(struct socket_server *ss,int fd,int id,bool a
 	{
 	 	return NULL;
 	}
-	//printf("s->type = %d\n",s->type);
+
+	printf("---------------------------------------------id = %d\n",id);
+	printf("---------------------------------------------id / MAX_SOCKET = %d\n",id % MAX_SOCKET);
+	printf("---------------------------------------------s->type = %d\n",s->type);
+
 	assert(s->type == SOCKET_TYPE_INVALID);
 
 	if(add_epoll)
@@ -261,7 +265,9 @@ static void close_fd(struct socket_server *ss,struct socket *s,struct socket_mes
 		tmp = s->head;
 	}
 	close(s->fd);
+
 	s->type = SOCKET_TYPE_INVALID;
+	printf("close id = %d\n",s->id);
 	s->head = NULL;
 	s->tail = NULL;
 	s->remain_size = 0;
@@ -274,12 +280,13 @@ static void close_fd(struct socket_server *ss,struct socket *s,struct socket_mes
 static int dispose_readmessage(struct socket_server *ss,struct socket *s, struct socket_message * result)
 {
 	unsigned char len = 0;
+	char* buffer  = NULL;
 	int n = (int)read(s->fd,&len,DATA_LEN_SIZE);
 	if(n <= 0)
 		goto _err;
 	assert(n == DATA_LEN_SIZE);
 
-	char* buffer = (char*)malloc(len);  
+	buffer = (char*)malloc(len);  
 	if(buffer == NULL) 
 	{
 		fprintf(ERR_FILE,"dispose_readmessage: result->buffer is NULL\n");
@@ -302,7 +309,11 @@ static int dispose_readmessage(struct socket_server *ss,struct socket *s, struct
 _err:	
 	if(n < 0)
 	{
-		free(buffer);
+		if(buffer != NULL)
+		{
+			free(buffer);
+			buffer = NULL;
+		}
 		switch(errno)
 		{
 			case EINTR:
@@ -318,8 +329,13 @@ _err:
 	}
 	if(n == 0) //client close,important
 	{
-		free(buffer);
-		close_fd(ss,s,result);
+		 if(buffer != NULL)
+		 {
+		 	free(buffer);
+		 	buffer = NULL;
+		 }
+		 printf("~~~~~~~~~~client close~~~~~~~~~\n");
+		 close_fd(ss,s,result);
 		return SOCKET_CLOSE;
 	}
 	return -1;
@@ -496,6 +512,8 @@ static struct socket_server* socket_server_create(net_io_start* start)
 	ss->event_index = 0;
 	ss->que_check = false;
 	ss->socket_pool = (struct socket*)malloc(sizeof(struct socket)*MAX_SOCKET);
+	printf("\n\nsizeof(struct socket)*MAX_SOCKET = %d\n\n",sizeof(struct socket)*MAX_SOCKET);
+
 	if(ss->socket_pool == NULL)
 	{
 		fprintf(ERR_FILE,"socket_server_create:socket_pool malloc failed\n");

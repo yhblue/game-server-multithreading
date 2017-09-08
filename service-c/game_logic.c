@@ -461,6 +461,7 @@ static int login_msg_send(game_logic* gl,int hero_uid,int enemy_uid,char msg_typ
 		return -1;		
 	}
 	broadcast_msg->data.proto_type = msg_type;
+	printf("\n\n&&&&&&& game: send type = %c to netlogic \n\n",msg_type);
 	broadcast_msg->data.buffer = rsp;
 
 	q_node* qnode = qnode_create(&broadcast_msg->list,&broadcast_msg->data,NULL);
@@ -498,7 +499,7 @@ void map_uid_list_rebuild(game_logic* gl,int uid)
 		}
 	}
 	printf("rebuild list index = %d,player = %d\n ",index,gl->route->map_player_num[mapid]);
-	assert(index == (gl->route->map_player_num[mapid]-1));
+//	assert(index == (gl->route->map_player_num[mapid]-1));
 }
 
 

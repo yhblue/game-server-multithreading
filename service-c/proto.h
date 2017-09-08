@@ -6,7 +6,7 @@
 #include <malloc.h>
 #include <stdbool.h>
 
-#define LOG_REQ  	  		'X'
+#define LOG_REQ  	  		'L'
 #define LOG_RSP       		'l'
 
 #define HERO_MSG_REQ  		'H'

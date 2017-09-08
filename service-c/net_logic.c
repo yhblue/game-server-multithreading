@@ -406,7 +406,7 @@ static int dispose_netio_service_que(net_logic* nl,q_node* qnode)
 	{
 		case TYPE_DATA:     			// 'D' 
 		{
-			printf("^^^^^^netlogic type = TYPE_DATA ^^^^^^^^^^^\n");
+			printf("^^^^^^ netlogic type = TYPE_DATA ^^^^^^^^^^^\n");
 			deserialize* deseria_data = unpack_user_data(data,content_len);    	//upack
 			q_node* send_qnode = pack_user_data(deseria_data,uid,type);        	//pack
 			send_msg_2_game_logic(nl,send_qnode,uid);							//send
@@ -415,7 +415,7 @@ static int dispose_netio_service_que(net_logic* nl,q_node* qnode)
 
 		case TYPE_CLOSE:    			// 'C'
 		{
-			printf("^^^^^^netlogic type = TYPE_CLOSE ^^^^^^^^^^^\n");
+			printf("^^^^^^ netlogic type = TYPE_CLOSE ^^^^^^^^^^^\n");
 			q_node* send_qnode = pack_inform_data(uid,type); 
 			send_msg_2_game_logic(nl,send_qnode,uid);
 			route_clear_gamelogic_id(nl,uid);  //清空路由表对应的socket位置
@@ -424,7 +424,7 @@ static int dispose_netio_service_que(net_logic* nl,q_node* qnode)
 		
 		case TYPE_SUCCESS:  			// 'S' 
 		{
-			printf("^^^^^^netlogic type = TYPE_SUCCESS ^^^^^^^^^^^\n");
+			printf("^^^^^^ netlogic type = TYPE_SUCCESS ^^^^^^^^^^^\n");
 			route_set_gamelogic_id(nl,uid);
 			q_node* send_qnode = pack_inform_data(uid,type); 
 			send_msg_2_game_logic(nl,send_qnode,uid);
@@ -471,7 +471,7 @@ uint8_t* log_rsp_data_pack(void* pack_data)
 	login_rsp_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
 	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
 	out_buf[HEAD_PROTO_SIZE_INDEX] = LOG_RSP;
-	printf("********TYPE = LOG_RSP,pack_size = %d**********\n",pack_size);
+	printf("******** TYPE = LOG_RSP,pack_size = %d **********\n",pack_size);
 
 	return out_buf;
 }
@@ -550,22 +550,27 @@ static int dispose_game_service_que(net_logic* nl,q_node* qnode)
 	switch(proto_type)
 	{
 		case LOG_RSP:
+			printf("\n\n\n\n^^^^^^net route:LOG_RSP^^^^^^^^\n\n\n");
 			rsp = log_rsp_data_pack(buffer);
 			break;			
 
 		case ENEMY_MSG:
+			printf("\n\n\n\n^^^^^^net route:ENEMY_MSG^^^^^^^^\n\n\n\n\n");
 			rsp = enemy_msg_data_pack(buffer);
 			break;
 
 		case LOGIN_END:
+			printf("\n\n\n\n^^^^^^net route:LOGIN_END^^^^^^^^\n\n\n\n\n");
 			rsp = login_end_data_pack(buffer);
 			break;
 
 		case GAME_START_RSP:
+			printf("\n\n\n\n^^^^^^net route:GAME_START_RSP^^^^^^^^\n\n\n\n\n");
 			rsp = start_rsp_data_pack(buffer);
 			break;
 
 		case NEW_ENEMY:
+			printf("\n\n\n\n^^^^^^net route:NEW_ENEMY^^^^^^^^\n\n\n\n\n");
 			rsp = new_enemy_data_pack(buffer);
 			break;
 	}
@@ -601,7 +606,7 @@ static int dispose_queue_event(net_logic* nl)
 
 			case SERVICE_TYPE_GAME_LOGIC:
 				dispose_game_service_que(nl,qnode);
-				printf("\n\n\n~~~~~~netlogic: dispose game queue~~~~~~~~~~\n");
+				printf("\n\n\n~~~~~~netlogic: dispose game queue~~~~~~~~~~\n\n");
 				break;
 
 			case SERVICE_TYPE_LOG:

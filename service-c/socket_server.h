@@ -14,12 +14,12 @@
 #define SOCKET_IGNORE 6         // 忽略,无需处理
 #define SOCKET_NETLOGIC_QUE  7
 
-#define MAX_SOCKET 					32*1024           //最多支持32k个socket连接 
+#define MAX_SOCKET 					(32*1024)         //最多支持32k个socket连接 
 
 struct socket_message {
 	int id;
 	int lid_size;	           // for accept,ud is id for data,size of data
-	char* data;    				//指向返回的数据
+	char* data;    			   //指向返回的数据
 };
 
 typedef struct _net_io_start
