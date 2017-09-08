@@ -17,11 +17,15 @@ typedef struct _player_id
 	uint8_t map_playerid;  			//记录这个用户在mapid上的这个地图的玩家的id 0-9
 }player_id;
 
+//我觉得可以在这里加一个判断位 true 才将UID列表更新过去 否则网络IO线程就使用原来的发送
 typedef struct _broadcast_list
 {
 	int broadcast_player_num;			//要广播的玩家数目
 	int uid_list[MAX_PLAYER_EACH_MAP];	//要广播的 uid 列表	
 }broadcast_list;
+
+typedef  broadcast_list  game_msg_head;
+typedef  broadcast_data  game_msg_data;
 
 typedef struct _broadcast_data
 {
@@ -34,6 +38,10 @@ typedef struct _broadcast
 	broadcast_list list;			//要广播的成员列表
 	broadcast_data data;			//要发送的数据
 }broadcast;
+
+//转换成队列节点就是 broadcast_list 存放头部
+//					 broadcast_data 存放在数据部分
+
 
 //网络逻辑处理服务应该只是更换掉broadcast数据类型的data中的void的指向
 //网络IO线程在发送完数据给最后一个玩家后要free(broadcast->data->buffer)

@@ -80,7 +80,9 @@ typedef struct _net_logic
 {			
 	queue* que_pool;						//存储所有线程的queue,不需分配内存
 	queue* current_que;                     //有数据到来的que
-	int epoll_fd;							
+	queue* network_que;
+	int epoll_fd;					
+	int netio_netroute_socket;					
 	struct event* event_pool;
 	bool check_que;
 	int event_index;
@@ -308,7 +310,7 @@ static net_logic* net_logic_creat(net_logic_start* start)
 
 	nt->serv_addr = start->service_addr;
 	nt->serv_port = start->service_port;
-
+	nt->network_que = &nt->que_pool[QUE_ID_NETLOGIC_2_NETIO];
 	return nt;
 }
 
@@ -371,7 +373,6 @@ static q_node* pack_user_data(deserialize* desseria_data,int uid_pack,char type_
 	return qnode;
 }
 
-//msg_head_create(type_pack,desseria_data->proto_type,uid_pack,INVALID);
 
 static q_node* pack_inform_data(int uid_pack,char type_pack)
 {
@@ -393,10 +394,10 @@ static q_node* pack_inform_data(int uid_pack,char type_pack)
 
 static int dispose_netio_service_que(net_logic* nl,q_node* qnode)
 {
-	char type = qnode->head->msg_type;  		// 'D' 'S' 'C'
-	int uid = qnode->head->uid; 				
-	int content_len = qnode->head->len; 		//内容的长度(即客户端原始发送上来的数据的长度)	
-	unsigned char* data = qnode->buffer;
+	char type = qnode->msg_head->msg_type;  		// 'D' 'S' 'C'
+	int uid = qnode->msg_head->uid; 				
+	int content_len = qnode->msg_head->len; 		//数据长度 = 内容长度 + 1字节的打包类型	
+	unsigned char* data = qnode->buffer;			
 	
 	printf("-----dispose_netio_service_que,type = %c -------\n",type);
 	switch(type)
@@ -458,15 +459,17 @@ qnode
 };
 */
 
+//这个函数要修改 qnode 部分
 //这个处理函数功能就是:
 //对数据根据proto_type进行protobuf的序列化->打包成 proto_type + len + seria_data 数据 ->push到socket的发送服务
 static int dispose_game_service_que(net_logic* nl,q_node* qnode)
 {
-	broadcast* broadcast_msg = qnode->buffer;
-	char proto_type = broadcast_msg->data.proto_type;
-	void* buffer = broadcast_msg->data.buffer;
-
+	game_msg_head* msg_head = (game_msg_head*)qnode->msg_head;
+	game_msg_data* msg_data = (game_msg_data*)qnode->buffer;  
+	char proto_type = msg_data->proto_type;
+	void* buffer = msg_data->buffer;
 	void* rsp = NULL;
+
 	switch(proto_type)
 	{
 		case LOG_RSP:
@@ -489,13 +492,17 @@ static int dispose_game_service_que(net_logic* nl,q_node* qnode)
 			rsp = new_enemy_data_pack(buffer);
 			break;
 	}
-	
-	q_node* node = (q_node*)malloc(q_node);
-	node->buffer = out_buf;
-	node->next = NULL;
+
 	//pack to qnode -> send to write
+	q_node* node = qnode_create(msg_head,rsp,NULL);
+	if(node == NULL)
+	{
+		fprintf(ERR_FILE,"dispose_game_service_que:qnode malloc failed\n");
+		return NULL;
+	}	
 
-
+	queue_push(nl->network_que,node);
+	send_msg2_service(nl->netio_netroute_socket);	//通知netio服务处理
 	return 0;
 }
 
@@ -793,7 +800,8 @@ static int connect_netio_service(net_logic* nl,char* netio_addr,int netio_port)
 		    sv->service_id = SERVICE_ID_NETWORK_IO;
 		    sv->sock_fd = sockfd;
 		    sv->type = SERVICE_TYPE_NET_IO;
-		    
+		    nl->netio_netroute_socket = sockfd;
+
 		    //add to epoll
 		    printf("netlogic:net_logic service connect to net_io service success!\n");
 		    if(epoll_add(nl->epoll_fd,sockfd,sv) == -1)

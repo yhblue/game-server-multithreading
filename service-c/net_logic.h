@@ -31,7 +31,7 @@
 #define GAME_LOGIC_SERVER_THIRD     2
 #define GAME_LOGIC_SERVER_FOURTH    3
 
-#define INVALID 					0
+#define INVALID 				   -1
 
 typedef struct _net_logic_start
 {

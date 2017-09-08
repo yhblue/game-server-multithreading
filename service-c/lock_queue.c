@@ -19,23 +19,23 @@ queue* queue_creat()
     return q;  
 }  
 
-q_node* set_qnode(void* buf,char msg_type,char proto_type,int uid,int len,q_node* next)
-{
-    q_node* qnode = (q_node*)malloc(sizeof(q_node));
-    if(qnode == NULL)
-    {
-        fprintf(ERR_FILE,"set_qnode:qnode malloc failed\n"); 
-        return NULL;
-    }
-    qnode->msg_type = msg_type;
-    qnode->proto_type = proto_type;
-    qnode->uid = uid;
-    qnode->len = len;
-    qnode->buffer = buf;
-    qnode->next = next; 
+// q_node* set_qnode(void* buf,char msg_type,char proto_type,int uid,int len,q_node* next)
+// {
+//     q_node* qnode = (q_node*)malloc(sizeof(q_node));
+//     if(qnode == NULL)
+//     {
+//         fprintf(ERR_FILE,"set_qnode:qnode malloc failed\n"); 
+//         return NULL;
+//     }
+//     qnode->msg_type = msg_type;
+//     qnode->proto_type = proto_type;
+//     qnode->uid = uid;
+//     qnode->len = len;
+//     qnode->buffer = buf;
+//     qnode->next = next; 
     
-    return qnode;
-}
+//     return qnode;
+// }
 
 
 

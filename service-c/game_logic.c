@@ -463,21 +463,18 @@ static int login_msg_send(game_logic* gl,int hero_uid,int enemy_uid,char msg_typ
 	broadcast_msg->data.proto_type = msg_type;
 	broadcast_msg->data.buffer = rsp;
 
-	q_node* qnode = (q_node*)malloc(sizeof(q_node));
+	q_node* qnode = qnode_create(&broadcast_msg->list,&broadcast_msg->data,NULL);
 	if(qnode == NULL)
 	{
 		fprintf(ERR_FILE,"send_login_rsp: qnode malloc error\n");
 		return -1;			
 	}
-	qnode->buffer = broadcast_msg;
-	qnode->next = NULL;
 	queue_push(gl->que_2_net_logic,qnode);    
 
 	send_msg2_service(gl->sock_2_net_logic);	
 
 	return 0;
 }
-
 
 void map_uid_list_rebuild(game_logic* gl,int uid)
 {
@@ -487,7 +484,7 @@ void map_uid_list_rebuild(game_logic* gl,int uid)
 		return;
 	}
 	int mapid = user_id->mapid;
-	printf("--------rebuild: mapid = %d\n",mapid);
+	printf("--------rebuild: mapid = %d----------\n",mapid);
 	int index = 0;
 
 	for(int i=0; i<MAX_PLAYER_EACH_MAP; i++)  //10
@@ -545,14 +542,12 @@ static int broadcast_player_msg(game_logic* gl,player* user,player_id* user_id,c
 	broadcast_msg->data.proto_type = broadcast_msg_type;
 	broadcast_msg->data.buffer = rsp;
 
-	q_node* qnode = (q_node*)malloc(sizeof(q_node));
+	q_node* qnode = qnode_create(&broadcast_msg->list,&broadcast_msg->data,NULL);
 	if(qnode == NULL)
 	{
 		fprintf(ERR_FILE,"send_login_rsp: qnode malloc error\n");
 		return -1;			
 	}
-	qnode->buffer = broadcast_msg;
-	qnode->next = NULL;
 	queue_push(gl->que_2_net_logic,qnode);    
 
 	send_msg2_service(gl->sock_2_net_logic);	
@@ -604,7 +599,7 @@ static int dispose_start_request(game_logic* gl,player_id* user_id,void* data,in
 
 static int dispose_game_logic(game_logic* gl,q_node* qnode)
 {
-	int uid = qnode->uid;
+	int uid = qnode->msg_head->uid;
 	void* data = qnode->buffer;
 	player_id* user_id = game_route_get_playerid(gl,uid);	//根据uid得到playerid
 	printf("-----game: client:uid = %d,gameid = %d,user_id->mapid = %d,user_id->map_playerid = %d----\n",uid,gl->game_service_id,user_id->mapid,user_id->map_playerid);
@@ -640,7 +635,7 @@ static int dispose_queue_event(game_logic* gl)
 	}
 	else
 	{
-		char type = qnode->msg_type;
+		char type = qnode->msg_head->msg_type;
 		switch(type)
 		{
 			case TYPE_DATA:	    //玩家数据
