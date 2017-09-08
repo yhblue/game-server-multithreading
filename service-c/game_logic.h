@@ -24,14 +24,15 @@ typedef struct _broadcast_list
 	int uid_list[MAX_PLAYER_EACH_MAP];	//要广播的 uid 列表	
 }broadcast_list;
 
-typedef  broadcast_list  game_msg_head;
-typedef  broadcast_data  game_msg_data;
 
 typedef struct _broadcast_data
 {
 	char proto_type;				//要打包的类型
 	void* buffer;					//要打包的数据
 }broadcast_data;
+
+typedef  broadcast_list  game_msg_head;
+typedef  broadcast_data  game_msg_data;
 
 typedef struct _broadcast
 {

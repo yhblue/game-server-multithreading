@@ -702,24 +702,24 @@ static q_node* dispose_event_result(struct socket_server* ss,struct socket_messa
 	int uid = result->id;
 	char* buf = result->data;
 	int len = result->lid_size;	
-
+	printf("socket service: dispose_event_result :socket type = %d\n",type);
 	switch(type)
 	{
 		case SOCKET_DATA:
-//			qnode = set_qnode(buf,TYPE_DATA,0,uid,len,NULL);
+			printf("*********SOCKET_DATA***********\n");
 			head = msg_head_create(TYPE_DATA,INVALID,uid,len);
-			qnode = qnode_create(buf,head,NULL);
+			qnode = qnode_create(head,buf,NULL);
 			printf("netio push data to queue\n");
 			break;
 
-		case SOCKET_CLOSE:
-//			qnode = set_qnode(NULL,TYPE_CLOSE,0,uid,0,NULL);		
+		case SOCKET_CLOSE: 
+			printf("*********SOCKET_CLOSE***********\n");	
 			head = msg_head_create(TYPE_CLOSE,INVALID,uid,INVALID);
 			qnode = qnode_create(head,NULL,NULL);
 			break;
 
 		case SOCKET_SUCCESS:
-//			qnode = set_qnode(NULL,TYPE_SUCCESS,0,uid,0,NULL);
+			printf("*********SOCKET_SUCCESS***********\n");
 			head = msg_head_create(TYPE_SUCCESS,INVALID,uid,INVALID);
 			qnode = qnode_create(head,NULL,NULL);
 			break;
@@ -755,7 +755,7 @@ net_io_start* net_io_start_creat(queue* que_pool,configure* conf,int service_id)
 	start->que_pool = que_pool;
 	start->service_id = service_id;
 	start->address = conf->service_address; //这个没错,不需要修改
-	start->port = conf->service_port;	
+	start->port = conf->service_port;		
 
 	return start;
 }

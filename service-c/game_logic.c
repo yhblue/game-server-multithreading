@@ -505,7 +505,7 @@ void map_uid_list_rebuild(game_logic* gl,int uid)
 static void map_uid_list_append(game_logic* gl,int mapid,int uid)
 {
 	int index = gl->route->map_player_num[mapid] - 1; //总人数-1 = index 
-	printf("\n\n\n!!!-------list append index = %d --------\n",index);
+	printf("\n\n\n!!!------list append index = %d --------\n",index);
 	gl->route->map_uid_list[mapid][index] = uid; 
 }
 
@@ -599,13 +599,14 @@ static int dispose_start_request(game_logic* gl,player_id* user_id,void* data,in
 
 static int dispose_game_logic(game_logic* gl,q_node* qnode)
 {
-	int uid = qnode->msg_head->uid;
+	msg_head* head = (msg_head*)qnode->msg_head;
+	int uid = head->uid;
 	void* data = qnode->buffer;
 	player_id* user_id = game_route_get_playerid(gl,uid);	//根据uid得到playerid
 	printf("-----game: client:uid = %d,gameid = %d,user_id->mapid = %d,user_id->map_playerid = %d----\n",uid,gl->game_service_id,user_id->mapid,user_id->map_playerid);
 	if(user_id != NULL)
 	{
-		switch(qnode->proto_type)
+		switch(head->proto_type)
 		{
 			case LOG_REQ: 		 //登陆请求
 				printf("#######game:recieve que login require#######\n");
@@ -635,7 +636,8 @@ static int dispose_queue_event(game_logic* gl)
 	}
 	else
 	{
-		char type = qnode->msg_head->msg_type;
+		msg_head* head = (msg_head*)qnode->msg_head;
+		char type = head->msg_type;
 		switch(type)
 		{
 			case TYPE_DATA:	    //玩家数据
@@ -644,14 +646,14 @@ static int dispose_queue_event(game_logic* gl)
 				break;
 
 			case TYPE_CLOSE:    //玩家关闭
-				printf("\n\n<<<<<<<game service: client close uid = %d>>>>>>>\n",qnode->uid);
-				map_uid_list_rebuild(gl,qnode->uid);		//广播列表重建 
-				game_route_del(gl,qnode->uid); 			//在路由表中删除该成员 
+				printf("\n\n<<<<<<<game service: client close uid = %d>>>>>>>\n",head->uid);
+				map_uid_list_rebuild(gl,head->uid);		//广播列表重建 
+				game_route_del(gl,head->uid); 			//在路由表中删除该成员 
 				break;
 
 			case TYPE_SUCCESS:  //新玩家登陆
-				printf("\n\n<<<<<<<<game service: new client uid = %d>>>>>>>>\n",qnode->uid);
-				game_route_append(gl,qnode->uid);
+				printf("\n\n<<<<<<<<game service: new client uid = %d>>>>>>>>\n",head->uid);
+				game_route_append(gl,head->uid);
 				break;
 		} 
 	}

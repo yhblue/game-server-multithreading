@@ -217,6 +217,7 @@ int route_get_msg_socket(net_logic* nl,int socket_id)
 static deserialize* unpack_user_data(unsigned char * data_pack,int len)
 {
 	unsigned char proto_type = data_pack[0]; 	 //记录用的.proto文件中哪个message来序列化  
+	printf("&&&---------unpack_user_data: proto_type = %c ----\n",proto_type);
 	unsigned char* seria_data = data_pack + 1;   //data_pack 是网络IO线程中分配的内存，反序列化完之后free掉
 	deserialize* data = (deserialize*)malloc(sizeof(deserialize));
 	int data_len = len -1; //减去第一个字节包头
@@ -394,9 +395,10 @@ static q_node* pack_inform_data(int uid_pack,char type_pack)
 
 static int dispose_netio_service_que(net_logic* nl,q_node* qnode)
 {
-	char type = qnode->msg_head->msg_type;  		// 'D' 'S' 'C'
-	int uid = qnode->msg_head->uid; 				
-	int content_len = qnode->msg_head->len; 		//数据长度 = 内容长度 + 1字节的打包类型	
+	msg_head* head = (msg_head*)qnode->msg_head;
+	char type = head->msg_type;  		// 'D' 'S' 'C'
+	int uid = head->uid; 				
+	int content_len = head->len; 		//数据长度 = 内容长度 + 1字节的打包类型	
 	unsigned char* data = qnode->buffer;			
 	
 	printf("-----dispose_netio_service_que,type = %c -------\n",type);
@@ -408,7 +410,6 @@ static int dispose_netio_service_que(net_logic* nl,q_node* qnode)
 			deserialize* deseria_data = unpack_user_data(data,content_len);    	//upack
 			q_node* send_qnode = pack_user_data(deseria_data,uid,type);        	//pack
 			send_msg_2_game_logic(nl,send_qnode,uid);							//send
-			//send_data_test(nl,que,send_qnode);
 			break;				
 		}
 
@@ -459,6 +460,82 @@ qnode
 };
 */
 
+uint8_t* log_rsp_data_pack(void* pack_data)
+{
+	login_rsp_init(pack_data);
+	int pack_size = login_rsp_get_packed_size(pack_data);
+	uint8_t* out_buf = (uint8_t*)malloc(pack_size + PROTO_HEAD_SIZE);
+	if(out_buf == NULL)
+		return NULL;
+
+	login_rsp_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
+	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
+	out_buf[HEAD_PROTO_SIZE_INDEX] = LOG_RSP;
+	printf("********TYPE = LOG_RSP,pack_size = %d**********\n",pack_size);
+
+	return out_buf;
+}
+
+uint8_t* enemy_msg_data_pack(void* pack_data)
+{
+	enemy_msg_init(pack_data);
+	int pack_size = enemy_msg_get_packed_size(pack_data);
+	uint8_t* out_buf = (uint8_t*)malloc(pack_size + PROTO_HEAD_SIZE);
+	if(out_buf == NULL)
+		return NULL;
+
+	enemy_msg_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
+	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
+	out_buf[HEAD_PROTO_SIZE_INDEX] = ENEMY_MSG;	
+
+	return out_buf;
+}
+
+uint8_t* start_rsp_data_pack(void* pack_data)
+{
+	start_rsp_init(pack_data);
+	int pack_size = start_rsp_get_packed_size(pack_data);
+	uint8_t* out_buf = (uint8_t*)malloc(pack_size + PROTO_HEAD_SIZE);
+	if(out_buf == NULL)
+		return NULL;
+
+	start_rsp_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
+	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
+	out_buf[HEAD_PROTO_SIZE_INDEX] = GAME_START_RSP;	
+
+	return out_buf;
+}
+
+uint8_t* new_enemy_data_pack(void* pack_data)
+{
+	new_enemy_init(pack_data);
+	int pack_size = new_enemy_get_packed_size(pack_data);
+	uint8_t* out_buf = (uint8_t*)malloc(pack_size + PROTO_HEAD_SIZE);
+	if(out_buf == NULL)
+		return NULL;
+
+	new_enemy_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
+	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
+	out_buf[HEAD_PROTO_SIZE_INDEX] = NEW_ENEMY;	
+
+	return out_buf;
+}
+
+uint8_t* login_end_data_pack(void* pack_data)
+{
+	login_end_init(pack_data);
+	int pack_size = login_end_get_packed_size(pack_data);
+	uint8_t* out_buf = (uint8_t*)malloc(pack_size + PROTO_HEAD_SIZE);
+	if(out_buf == NULL)
+		return NULL;
+
+	login_end_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
+	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
+	out_buf[HEAD_PROTO_SIZE_INDEX] = LOGIN_END;	
+
+	return out_buf;	
+}
+
 //这个函数要修改 qnode 部分
 //这个处理函数功能就是:
 //对数据根据proto_type进行protobuf的序列化->打包成 proto_type + len + seria_data 数据 ->push到socket的发送服务
@@ -498,91 +575,13 @@ static int dispose_game_service_que(net_logic* nl,q_node* qnode)
 	if(node == NULL)
 	{
 		fprintf(ERR_FILE,"dispose_game_service_que:qnode malloc failed\n");
-		return NULL;
+		return -1;
 	}	
 
 	queue_push(nl->network_que,node);
 	send_msg2_service(nl->netio_netroute_socket);	//通知netio服务处理
 	return 0;
 }
-
-char* log_rsp_data_pack(void* pack_data)
-{
-	login_rsp_init(pack_data);
-	int pack_size = login_rsp_get_packed_size(pack_data);
-	char* out_buf = (char*)malloc(pack_size + PROTO_HEAD_SIZE);
-	if(out_buf == NULL)
-		return NULL;
-
-	login_rsp_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
-	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
-	out_buf[HEAD_PROTO_SIZE_INDEX] = LOG_RSP;
-	printf("********TYPE = LOG_RSP,pack_size = %d**********\n",pack_size);
-
-	return out_buf;
-}
-
-char* enemy_msg_data_pack(void* pack_data)
-{
-	enemy_msg_init(pack_data);
-	int pack_size = enemy_msg_get_packed_size(pack_data);
-	char* out_buf = (char*)malloc(pack_size + PROTO_HEAD_SIZE);
-	if(out_buf == NULL)
-		return NULL;
-
-	enemy_msg_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
-	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
-	out_buf[HEAD_PROTO_SIZE_INDEX] = ENEMY_MSG;	
-
-	return out_buf;
-}
-
-char* start_rsp_data_pack(void* pack_data)
-{
-	start_rsp_init(pack_data);
-	int pack_size = start_rsp_get_packed_size(pack_data);
-	char* out_buf = (char*)malloc(pack_size + PROTO_HEAD_SIZE);
-	if(out_buf == NULL)
-		return NULL;
-
-	start_rsp_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
-	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
-	out_buf[HEAD_PROTO_SIZE_INDEX] = GAME_START_RSP;	
-
-	return out_buf;
-}
-
-char* new_enemy_data_pack(void* pack_data,char proto_type)
-{
-	new_enemy_init(pack_data);
-	int pack_size = new_enemy_get_packed_size(pack_data);
-	char* out_buf = (char*)malloc(pack_size + PROTO_HEAD_SIZE);
-	if(out_buf == NULL)
-		return NULL;
-
-	new_enemy_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
-	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
-	out_buf[HEAD_PROTO_SIZE_INDEX] = NEW_ENEMY;	
-
-	return out_buf;
-}
-
-char* login_end_data_pack(void* pack_data,char proto_type)
-{
-	login_end_init(pack_data);
-	int pack_size = login_end_get_packed_size(pack_data);
-	char* out_buf = (char*)malloc(pack_size + PROTO_HEAD_SIZE);
-	if(out_buf == NULL)
-		return NULL;
-
-	login_end_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
-	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
-	out_buf[HEAD_PROTO_SIZE_INDEX] = LOGIN_END;	
-
-	return out_buf;	
-}
-
-
 
 static int dispose_queue_event(net_logic* nl)
 {
@@ -602,7 +601,7 @@ static int dispose_queue_event(net_logic* nl)
 
 			case SERVICE_TYPE_GAME_LOGIC:
 				dispose_game_service_que(nl,qnode);
-				printf("netlogic: dispose game queue\n");
+				printf("\n\n\n~~~~~~netlogic: dispose game queue~~~~~~~~~~\n");
 				break;
 
 			case SERVICE_TYPE_LOG:

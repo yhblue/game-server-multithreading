@@ -6,7 +6,7 @@
 #include <malloc.h>
 #include <stdbool.h>
 
-#define LOG_REQ  	  		'L'
+#define LOG_REQ  	  		'X'
 #define LOG_RSP       		'l'
 
 #define HERO_MSG_REQ  		'H'
@@ -152,7 +152,7 @@ size_t enemy_msg_pack(const void* message,uint8_t* out)
 }
 
 static inline
-void* enemy_msg__unpack(ProtobufCAllocator* allocator,size_t len,const uint8_t* data)
+void* enemy_msg_unpack(ProtobufCAllocator* allocator,size_t len,const uint8_t* data)
 {
 	return enemy_msg__unpack(allocator,len,data);
 }
@@ -165,7 +165,7 @@ void start_req_init(void* message)
 }
 
 static inline
-size_t start_req_get_packed_size(const void* *message)
+size_t start_req_get_packed_size(const void* message)
 {
 	return start_req__get_packed_size(message);
 }
@@ -177,7 +177,7 @@ size_t start_req_pack(const void* message,uint8_t* out)
 }
 
 static inline
-void* start_req_unpack(ProtobufCAllocator  *allocator,size_t len,const uint8_t* data)
+void* start_req_unpack(ProtobufCAllocator* allocator,size_t len,const uint8_t* data)
 {
 	return start_req__unpack(allocator,len,data);
 }
@@ -193,7 +193,7 @@ void start_rsp_init(void* message)
 static inline
 size_t start_rsp_get_packed_size(const void* message)
 {
-	start_rsp__get_packed_size(message);
+	return start_rsp__get_packed_size(message);
 }
 
 static inline
@@ -203,7 +203,7 @@ size_t start_rsp_pack(const void* message,uint8_t* out)
 }
 
 static inline
-void* start_rsp_free_unpacked(void* message,ProtobufCAllocator *allocator)
+void start_rsp_free_unpacked(void* message,ProtobufCAllocator *allocator)
 {
 	start_rsp__free_unpacked(message,allocator);
 }
@@ -235,7 +235,7 @@ void* new_enemy_unpack(ProtobufCAllocator* allocator,size_t len,const uint8_t* d
 }
 
 static inline
-void new_enemy_free_unpacked(void* message,ProtobufCAllocator *allocator)
+void new_enemy_free_unpacked(void* message,ProtobufCAllocator* allocator)
 {
 	new_enemy__free_unpacked(message,allocator);
 }
@@ -260,7 +260,7 @@ size_t login_end_pack(const void* message,uint8_t* out)
 }
 
 static inline
-void* login_end__unpack(ProtobufCAllocator* allocator,size_t len,const uint8_t* data)
+void* login_end_unpack(ProtobufCAllocator* allocator,size_t len,const uint8_t* data)
 {
 	return login_end__unpack(allocator,len,data);
 }
