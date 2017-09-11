@@ -72,6 +72,7 @@ struct socket_server
     char* address;
     int port;
     int listen_fd;
+    int alloc_id;
     struct socket* socket_netlog;
     bool que_check;               //检测消息队列的标志位
 };
@@ -100,15 +101,24 @@ struct socket_server
 // }
 
 //id from 1-2^31-1
-static int apply_id()
+static int apply_id(struct socket_server *ss)
 {
-	static int id = 0;
-	id ++;
-	if(id < 0) 
+	struct socket* s = NULL;
+	int last_id = ss->alloc_id;
+
+	if(last_id >= (MAX_SOCKET-1)) 
 	{
-		id = 1;
+		ss->alloc_id = 0;
 	}
-	return id;
+	for(int id=last_id+1; id<MAX_SOCKET; id++)
+	{
+		s = &ss->socket_pool[id % MAX_SOCKET];
+		if(s->type == SOCKET_TYPE_INVALID)
+		{
+			ss->alloc_id = id;
+			return id;
+		}
+	}
 }
 
 //apply a socket from socket_pool 
@@ -546,7 +556,7 @@ static struct socket_server* socket_server_create(net_io_start* start)
 	ss->netlogic2io_que = &start->que_pool[QUE_ID_NETLOGIC_2_NETIO];
 	ss->address = start->address;
 	ss->port = start->port;
-	
+	ss->alloc_id = 0;
 	return ss;
 }
 
