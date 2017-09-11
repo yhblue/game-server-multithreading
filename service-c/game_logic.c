@@ -739,6 +739,14 @@ static int connect_netlogic_service(game_logic* gl)
     game_service_addr.sin_family = AF_INET;
     game_service_addr.sin_port = htons(gl->service_port);			//8002-8005
     game_service_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+	int optval = 1;
+	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1)
+	{
+		perror("setsockopt bind\n");
+		return -1; 
+	}
+	    
     if(bind(sockfd,(struct sockaddr*)(&game_service_addr),sizeof(game_service_addr)) == -1)
     {
        fprintf(ERR_FILE,"connect_netlogic_service:socket bind failed\n");
