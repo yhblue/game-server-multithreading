@@ -743,7 +743,7 @@ static int connect_netlogic_service(game_logic* gl)
 	int optval = 1;
 	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1)
 	{
-		perror("setsockopt bind\n");
+		perror("game service:setsockopt bind\n");
 		return -1; 
 	}
 	    
