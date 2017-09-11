@@ -20,6 +20,7 @@ typedef struct _player_id
 //我觉得可以在这里加一个判断位 true 才将UID列表更新过去 否则网络IO线程就使用原来的发送
 typedef struct _broadcast_list
 {
+	int size;							//数据的长度
 	int broadcast_player_num;			//要广播的玩家数目
 	int uid_list[MAX_PLAYER_EACH_MAP];	//要广播的 uid 列表	
 }broadcast_list;

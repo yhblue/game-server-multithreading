@@ -434,33 +434,8 @@ static int dispose_netio_service_que(net_logic* nl,q_node* qnode)
 	return 0;	
 } 
 
-// typedef struct _broadcast_list
-// {
-// 	int broadcast_player_num;			//要广播的玩家数目
-// 	int uid_list[MAX_PLAYER_EACH_MAP];	//要广播的 uid 列表	
-// }broadcast_list;
 
-// typedef struct _broadcast_data
-// {
-// 	char proto_type;				//要打包的类型
-// 	void* buffer;					//要打包的数据
-// }broadcast_data;
-
-// typedef struct _broadcast
-// {
-// 	broadcast_list list;			//要广播的成员列表
-// 	broadcast_data data;			//要发送的数据
-// }broadcast;
-
-/*
-qnode 
-{
-	void* head;
-	void* buffer;
-};
-*/
-
-uint8_t* log_rsp_data_pack(void* pack_data)
+uint8_t* log_rsp_data_pack(void* pack_data,int* len)
 {
 	login_rsp_init(pack_data);
 	int pack_size = login_rsp_get_packed_size(pack_data);
@@ -471,12 +446,13 @@ uint8_t* log_rsp_data_pack(void* pack_data)
 	login_rsp_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
 	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
 	out_buf[HEAD_PROTO_SIZE_INDEX] = LOG_RSP;
-	printf("******** TYPE = LOG_RSP,pack_size = %d **********\n",pack_size);
+
+	*len = pack_size + PROTO_HEAD_SIZE;
 
 	return out_buf;
 }
 
-uint8_t* enemy_msg_data_pack(void* pack_data)
+uint8_t* enemy_msg_data_pack(void* pack_data,int* len)
 {
 	enemy_msg_init(pack_data);
 	int pack_size = enemy_msg_get_packed_size(pack_data);
@@ -488,10 +464,12 @@ uint8_t* enemy_msg_data_pack(void* pack_data)
 	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
 	out_buf[HEAD_PROTO_SIZE_INDEX] = ENEMY_MSG;	
 
+	*len = pack_size + PROTO_HEAD_SIZE;
+
 	return out_buf;
 }
 
-uint8_t* start_rsp_data_pack(void* pack_data)
+uint8_t* start_rsp_data_pack(void* pack_data,int* len)
 {
 	start_rsp_init(pack_data);
 	int pack_size = start_rsp_get_packed_size(pack_data);
@@ -503,10 +481,12 @@ uint8_t* start_rsp_data_pack(void* pack_data)
 	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
 	out_buf[HEAD_PROTO_SIZE_INDEX] = GAME_START_RSP;	
 
+	*len = pack_size + PROTO_HEAD_SIZE;
+
 	return out_buf;
 }
 
-uint8_t* new_enemy_data_pack(void* pack_data)
+uint8_t* new_enemy_data_pack(void* pack_data,int* len)
 {
 	new_enemy_init(pack_data);
 	int pack_size = new_enemy_get_packed_size(pack_data);
@@ -518,10 +498,12 @@ uint8_t* new_enemy_data_pack(void* pack_data)
 	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
 	out_buf[HEAD_PROTO_SIZE_INDEX] = NEW_ENEMY;	
 
+	*len = pack_size + PROTO_HEAD_SIZE;
+
 	return out_buf;
 }
 
-uint8_t* login_end_data_pack(void* pack_data)
+uint8_t* login_end_data_pack(void* pack_data,int* len)
 {
 	login_end_init(pack_data);
 	int pack_size = login_end_get_packed_size(pack_data);
@@ -532,6 +514,8 @@ uint8_t* login_end_data_pack(void* pack_data)
 	login_end_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
 	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
 	out_buf[HEAD_PROTO_SIZE_INDEX] = LOGIN_END;	
+
+	*len = pack_size + PROTO_HEAD_SIZE;
 
 	return out_buf;	
 }
@@ -546,36 +530,38 @@ static int dispose_game_service_que(net_logic* nl,q_node* qnode)
 	char proto_type = msg_data->proto_type;
 	void* buffer = msg_data->buffer;
 	void* rsp = NULL;
-
+	int rsp_size = 0;
+	
 	switch(proto_type)
 	{
 		case LOG_RSP:
 			printf("\n\n\n\n^^^^^^net route:LOG_RSP^^^^^^^^\n\n\n");
-			rsp = log_rsp_data_pack(buffer);
+			rsp = log_rsp_data_pack(buffer,&rsp_size);
 			break;			
 
 		case ENEMY_MSG:
 			printf("\n\n\n\n^^^^^^net route:ENEMY_MSG^^^^^^^^\n\n\n\n\n");
-			rsp = enemy_msg_data_pack(buffer);
+			rsp = enemy_msg_data_pack(buffer,&rsp_size);
 			break;
 
 		case LOGIN_END:
 			printf("\n\n\n\n^^^^^^net route:LOGIN_END^^^^^^^^\n\n\n\n\n");
-			rsp = login_end_data_pack(buffer);
+			rsp = login_end_data_pack(buffer,&rsp_size);
 			break;
 
 		case GAME_START_RSP:
-			printf("\n\n\n\n^^^^^^net route:GAME_START_RSP^^^^^^^^\n\n\n\n\n");
-			rsp = start_rsp_data_pack(buffer);
+			printf("\n\n\n\n^^^^^^net route:GAME_START_RSP^^^^^^^^\n\n\n\n");
+			rsp = start_rsp_data_pack(buffer,&rsp_size);
 			break;
 
 		case NEW_ENEMY:
 			printf("\n\n\n\n^^^^^^net route:NEW_ENEMY^^^^^^^^\n\n\n\n\n");
-			rsp = new_enemy_data_pack(buffer);
+			rsp = new_enemy_data_pack(buffer,&rsp_size);
 			break;
 	}
 
 	//pack to qnode -> send to write
+	msg_head->size = rsp_size;	//记录发送的数据的长度,用于发送
 	q_node* node = qnode_create(msg_head,rsp,NULL);
 	if(node == NULL)
 	{
