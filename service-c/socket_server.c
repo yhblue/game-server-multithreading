@@ -227,7 +227,7 @@ static int dispose_accept(struct socket_server *ss,struct socket *s,struct socke
 		return -1;
 	}
 
-	int id = apply_id();
+	int id = apply_id(ss);
 	socket_keepalive(client_fd);
 	if(set_nonblock(client_fd) == -1)
 	{
@@ -568,7 +568,7 @@ static int socket_server_listen(struct socket_server *ss,const char* host,int po
 	   return -1;
 	}
 	ss->listen_fd = listen_fd;
-	int id = apply_id();
+	int id = apply_id(ss);
 	if(listen_socket(ss,listen_fd,id) == 0)
 	{
 		return id;
@@ -816,7 +816,7 @@ static int wait_netlogic_service_connect(struct socket_server* ss)
 					fprintf(ERR_FILE,"wait_netlogic_service_connect:set set_nonblock failed\n");
 					return -1;
 				}				
-				int id = apply_id();
+				int id = apply_id(ss);
 				struct socket* s = apply_socket(ss,socket,id,true);
 				if(s == NULL)
 				{
