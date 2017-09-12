@@ -296,6 +296,26 @@ static void close_fd(struct socket_server *ss,struct socket *s,struct socket_mes
 	s->remain_size = 0;
 }
 
+static void send_client_msg2net_logic(struct socket_server* ss,q_node* qnode)
+{
+	if(qnode == NULL)
+	{
+		fprintf(ERR_FILE,"send_client_msg2net_logic:a null qnode\n");
+		return; 		
+	}
+	queue_push(ss->io2netlogic_que,qnode); //封装成一个send函数
+
+	int socket = (ss->socket_netlog)->fd;
+	send_msg2_service(socket);			   //发送通知给 net_logic service
+}
+
+static void report_socket_error(struct socket_server* ss,int uid)
+{
+	msg_head* head = msg_head_create(TYPE_CLOSE,INVALID,uid,INVALID);
+	q_node* qnode = qnode_create(head,NULL,NULL);			//
+	send_client_msg2net_logic(ss,qnode);         	//通知 netlogic service
+}
+
 
 //处理epoll的可读事件
 //这个函数还需要改，如果第二次读len长度数据时候被信号中断了改怎么办
@@ -361,33 +381,11 @@ _err:
 		 	free(buffer);
 		 	buffer = NULL;
 		 }
-		 printf("\n\n\n\n<<~~~~~~~~~~client close~~~~~~~~~>>\n\n\n\n\n");
+		 printf("\n\n\n\n<<~~~~~~~~~~n = 0 client close~~~~~~~~~>>\n\n\n\n\n");
 		 close_fd(ss,s,result);
 		 return SOCKET_CLOSE;
 	}
 	return -1;
-}
-
-
-static void send_client_msg2net_logic(struct socket_server* ss,q_node* qnode)
-{
-	if(qnode == NULL)
-	{
-		fprintf(ERR_FILE,"send_client_msg2net_logic:a null qnode\n");
-		return; 		
-	}
-	queue_push(ss->io2netlogic_que,qnode); //封装成一个send函数
-
-	int socket = (ss->socket_netlog)->fd;
-	send_msg2_service(socket);			   //发送通知给 net_logic service
-}
-
-
-static void report_socket_error(struct socket_server* ss,int uid)
-{
-	msg_head* head = msg_head_create(TYPE_CLOSE,INVALID,uid,INVALID);
-	q_node* qnode = qnode_create(head,NULL,NULL);			//
-	send_client_msg2net_logic(ss,qnode);         	//通知 netlogic service
 }
 
 
@@ -410,7 +408,7 @@ static int send_buffer(struct socket_server* ss,struct socket *s,struct socket_m
 						return -1;
 					default:
 					fprintf(ERR_FILE, "send_data: write to %d (fd=%d) error.",s->id,s->fd);
-					close_fd(ss,s,result);//还需呀通知游戏服务逻辑这个id关闭了
+					close_fd(ss,s,result);
 					report_socket_error(ss,s->id);
 					return -1;
 				}
@@ -1174,3 +1172,4 @@ static int socket_server_send(struct socket_server* ss,struct send_data_req * re
 	return 0;
 }
 
+*/
