@@ -5,18 +5,6 @@ message hero_msg{
 } 
 
 
-message login_req{
-	required string name = 1;
-}
-
-message login_rsp{
-	required bool success = 1;
-	required int32 point_x = 2;
-	required int32 point_y = 3;	
-	required int32 enemy_num = 4;
-	required int32 uid = 5;
-}
-
 message enemy_msg{
 	required int32 uid = 1;
 	required int32 point_x = 2;
@@ -27,6 +15,23 @@ message new_enemy{
 	required int32 uid = 1;
 	required int32 point_x = 2;
 	required int32 point_y = 3;		
+}
+
+message enemy_leave{
+	require int32 uid = 1;
+}
+
+
+message login_req{
+	required string name = 1;
+}
+
+message login_rsp{
+	required bool success = 1;
+	required int32 point_x = 2;
+	required int32 point_y = 3;	
+	required int32 enemy_num = 4;
+	required int32 uid = 5;
 }
 
 
@@ -41,4 +46,13 @@ message start_rsp{
 
 message login_end{
 	required bool success = 1;
+}
+
+
+message leave_req{
+	required int32 uid = 1;
+}
+
+message leave_rsp{
+	required bool leave = 1;
 }
