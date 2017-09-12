@@ -1,4 +1,4 @@
-
+/*
 网络 IO 的核心部分代码
 */
 #include "socket_server.h"
@@ -73,7 +73,7 @@ struct socket_server
     char* address;
     int port;
     int listen_fd;
-    int alloc_id;				 //用于记录本次分配了的最后一个id
+    int alloc_id;				  //用于记录本次分配了的最后一个id
     struct socket* socket_netlog;
     bool que_check;               //检测消息队列的标志位
 };
@@ -349,6 +349,8 @@ _err:
 				printf("\n\n\n\n<<~~~~~~~SOCKET_ERROR~~~~~~~~~~>>\n\n\n\n\n");
 				perror("SOCKET_ERROR");
 				close_fd(ss,s,result);
+				report_socket_error(ss,s->id);
+
 				return SOCKET_ERROR;			
 		}
 	}
@@ -381,7 +383,7 @@ static void send_client_msg2net_logic(struct socket_server* ss,q_node* qnode)
 }
 
 
-static void report_socket_close(struct socket_server* ss,int uid)
+static void report_socket_error(struct socket_server* ss,int uid)
 {
 	msg_head* head = msg_head_create(TYPE_CLOSE,INVALID,uid,INVALID);
 	q_node* qnode = qnode_create(head,NULL,NULL);			//
@@ -409,7 +411,7 @@ static int send_buffer(struct socket_server* ss,struct socket *s,struct socket_m
 					default:
 					fprintf(ERR_FILE, "send_data: write to %d (fd=%d) error.",s->id,s->fd);
 					close_fd(ss,s,result);//还需呀通知游戏服务逻辑这个id关闭了
-					report_socket_close(ss,s->id);
+					report_socket_error(ss,s->id);
 					return -1;
 				}
 			}
@@ -458,6 +460,7 @@ static int send_data(struct socket_server* ss,struct socket *s,void* buf,int len
 				default:
 					fprintf(ERR_FILE, "************socket_server_send: write to fd=%d error.************",s->fd);			
 					close_fd(ss,s,NULL);
+					report_socket_error(ss,s->id);
 					return -1;
 			}
 		}
@@ -481,12 +484,6 @@ static int send_data(struct socket_server* ss,struct socket *s,void* buf,int len
 	return 0;		
 }
 
-// static int send_data(struct socket_server* ss,struct socket *s,void* buf,int len)
-// {
-// 	printf("^^^------s->fd = %d,s->id = %d-------^^^\n",s->fd,s->id);
-// 	const char* str = "1234567789049790274020\n";
-// 	int n = write(s->fd,str,strlen(str)+1);
-// }
 
 static int broadcast_user_msg(struct socket_server* ss,q_node* qnode)
 {
@@ -496,6 +493,7 @@ static int broadcast_user_msg(struct socket_server* ss,q_node* qnode)
 	int request_len = msg_head->size;
 	void* msg_buf = qnode->buffer;
 	printf("--------socket_num = %d------------\n",socket_num);
+	
 	for(int i=0; i<socket_num; i++)
 	{
 		int id = uid_list[i];
@@ -902,8 +900,9 @@ void* network_io_service_loop(void* arg)
 				// socket_server_start(ss,result.id);  			//add to epoll
 				printf("SOCKET_ACCEPT accept \n");
 				break;
+
 			case SOCKET_ERROR:
-				printf("^^------socket error-------^^\n");
+
 				break;
 
 			case SOCKET_DATA:
