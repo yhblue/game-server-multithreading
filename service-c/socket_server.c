@@ -1,4 +1,4 @@
-/*
+
 网络 IO 的核心部分代码
 */
 #include "socket_server.h"
@@ -127,6 +127,7 @@ static int apply_id(struct socket_server *ss)
 			return id;
 		}
 	}
+	return -1;
 }
 
 //apply a socket from socket_pool 
@@ -276,7 +277,7 @@ static void close_fd(struct socket_server *ss,struct socket *s,struct socket_mes
 		result->data = "close\n";		
 	}
 
-	s->id = 0;
+	
 	struct append_buffer* tmp = s->head;
 	while( tmp ) //free
 	{
@@ -287,8 +288,9 @@ static void close_fd(struct socket_server *ss,struct socket *s,struct socket_mes
 	}
 	close(s->fd);
 
+	printf("^^^^^^^^^close id = %d^^^^^^^^^^^^\n",s->id);
 	s->type = SOCKET_TYPE_INVALID;
-	printf("close id = %d\n",s->id);
+	s->id = 0;
 	s->head = NULL;
 	s->tail = NULL;
 	s->remain_size = 0;
@@ -344,6 +346,8 @@ _err:
 				fprintf(ERR_FILE,"dispose_readmessage: socket read,EAGAIN\n");
 				break;
 			default:
+				printf("\n\n\n\n<<~~~~~~~SOCKET_ERROR~~~~~~~~~~>>\n\n\n\n\n");
+				perror("SOCKET_ERROR");
 				close_fd(ss,s,result);
 				return SOCKET_ERROR;			
 		}
@@ -355,17 +359,32 @@ _err:
 		 	free(buffer);
 		 	buffer = NULL;
 		 }
-		 printf("~~~~~~~~~~client close~~~~~~~~~\n");
+		 printf("\n\n\n\n<<~~~~~~~~~~client close~~~~~~~~~>>\n\n\n\n\n");
 		 close_fd(ss,s,result);
-		return SOCKET_CLOSE;
+		 return SOCKET_CLOSE;
 	}
 	return -1;
 }
 
-void report_socket_close(int uid)
+
+static void send_client_msg2net_logic(struct socket_server* ss,q_node* qnode)
+{
+	if(qnode == NULL)
+	{
+		fprintf(ERR_FILE,"send_client_msg2net_logic:a null qnode\n");
+		return; 		
+	}
+	queue_push(ss->io2netlogic_que,qnode); //封装成一个send函数
+
+	int socket = (ss->socket_netlog)->fd;
+	send_msg2_service(socket);			   //发送通知给 net_logic service
+}
+
+
+static void report_socket_close(struct socket_server* ss,int uid)
 {
 	msg_head* head = msg_head_create(TYPE_CLOSE,INVALID,uid,INVALID);
-	qnode = qnode_create(head,NULL,NULL);			//
+	q_node* qnode = qnode_create(head,NULL,NULL);			//
 	send_client_msg2net_logic(ss,qnode);         	//通知 netlogic service
 }
 
@@ -390,7 +409,7 @@ static int send_buffer(struct socket_server* ss,struct socket *s,struct socket_m
 					default:
 					fprintf(ERR_FILE, "send_data: write to %d (fd=%d) error.",s->id,s->fd);
 					close_fd(ss,s,result);//还需呀通知游戏服务逻辑这个id关闭了
-					report_socket_close(s->id);
+					report_socket_close(ss,s->id);
 					return -1;
 				}
 			}
@@ -419,8 +438,8 @@ static int send_buffer(struct socket_server* ss,struct socket *s,struct socket_m
 
 
 
-//负责单个socket成员数据的发送
-//如果缓冲区满了，那么就拷贝内存，然后把数据追加到 s 的缓冲区中
+// 负责单个socket成员数据的发送
+// 如果缓冲区满了，那么就拷贝内存，然后把数据追加到 s 的缓冲区中
 static int send_data(struct socket_server* ss,struct socket *s,void* buf,int len)
 {
 	assert(s->type == SOCKET_TYPE_CONNECT_ADD);  //必须是加入到epoll管理的socket才能发送数据
@@ -437,17 +456,19 @@ static int send_data(struct socket_server* ss,struct socket *s,void* buf,int len
 					n = 0;
 					break;
 				default:
-					fprintf(ERR_FILE, "socket_server_send: write to fd=%d error.",s->fd);			
+					fprintf(ERR_FILE, "************socket_server_send: write to fd=%d error.************",s->fd);			
 					close_fd(ss,s,NULL);
 					return -1;
 			}
 		}
 		if(n == len) //send success
 		{		
+			printf("^^^^^^n=len=%d\n",n);
 			return 0;
 		}
 		if(n < len)  //send buffer full
 		{
+			printf("############append data###################\n");
 			append_remaindata(s,buf,len,n); 		 	//append to buffer
 			epoll_write(ss->epoll_fd,s->fd,s,true);
 		}		
@@ -460,6 +481,13 @@ static int send_data(struct socket_server* ss,struct socket *s,void* buf,int len
 	return 0;		
 }
 
+// static int send_data(struct socket_server* ss,struct socket *s,void* buf,int len)
+// {
+// 	printf("^^^------s->fd = %d,s->id = %d-------^^^\n",s->fd,s->id);
+// 	const char* str = "1234567789049790274020\n";
+// 	int n = write(s->fd,str,strlen(str)+1);
+// }
+
 static int broadcast_user_msg(struct socket_server* ss,q_node* qnode)
 {
 	game_msg_head* msg_head = (game_msg_head*)qnode->msg_head;
@@ -467,13 +495,14 @@ static int broadcast_user_msg(struct socket_server* ss,q_node* qnode)
 	int *uid_list = msg_head->uid_list;
 	int request_len = msg_head->size;
 	void* msg_buf = qnode->buffer;
-	
+	printf("--------socket_num = %d------------\n",socket_num);
 	for(int i=0; i<socket_num; i++)
 	{
 		int id = uid_list[i];
 		printf("^^^^^^^^^^^netio:broadcast to uid = %d^^^^^^^^^^^^^^^^^^\n",id);
 		struct socket *s = &ss->socket_pool[id % MAX_SOCKET];
-		send_data(ss,s,msg_buf,len);
+		send_data(ss,s,msg_buf,request_len);
+		printf(">>>>>>>>>send data end<<<<<<<<<<<<<<<<\n");
 	}
 
 	if(msg_head != NULL)
@@ -766,18 +795,6 @@ static q_node* dispose_event_result(struct socket_server* ss,struct socket_messa
 }
 
 
-static void send_client_msg2net_logic(struct socket_server* ss,q_node* qnode)
-{
-	if(qnode == NULL)
-	{
-		fprintf(ERR_FILE,"send_client_msg2net_logic:a null qnode\n");
-		return; 		
-	}
-	queue_push(ss->io2netlogic_que,qnode); //封装成一个send函数
-
-	int socket = (ss->socket_netlog)->fd;
-	send_msg2_service(socket);			   //发送通知给 net_logic service
-}
 
 //这里应该不要传递那么多参数，直接传递读配置文件后返回的指针吧
 net_io_start* net_io_start_creat(queue* que_pool,configure* conf,int service_id)
@@ -884,6 +901,9 @@ void* network_io_service_loop(void* arg)
 				// printf("accept[id=%d] from [id=%d]\n",result.id,result.lid_size);
 				// socket_server_start(ss,result.id);  			//add to epoll
 				printf("SOCKET_ACCEPT accept \n");
+				break;
+			case SOCKET_ERROR:
+				printf("^^------socket error-------^^\n");
 				break;
 
 			case SOCKET_DATA:
