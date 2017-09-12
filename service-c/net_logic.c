@@ -437,7 +437,6 @@ static int dispose_netio_service_que(net_logic* nl,q_node* qnode)
 
 uint8_t* log_rsp_data_pack(void* pack_data,int* len)
 {
-	login_rsp_init(pack_data);
 	int pack_size = login_rsp_get_packed_size(pack_data);
 	uint8_t* out_buf = (uint8_t*)malloc(pack_size + PROTO_HEAD_SIZE);
 	if(out_buf == NULL)
@@ -454,7 +453,6 @@ uint8_t* log_rsp_data_pack(void* pack_data,int* len)
 
 uint8_t* enemy_msg_data_pack(void* pack_data,int* len)
 {
-	enemy_msg_init(pack_data);
 	int pack_size = enemy_msg_get_packed_size(pack_data);
 	uint8_t* out_buf = (uint8_t*)malloc(pack_size + PROTO_HEAD_SIZE);
 	if(out_buf == NULL)
@@ -471,7 +469,6 @@ uint8_t* enemy_msg_data_pack(void* pack_data,int* len)
 
 uint8_t* start_rsp_data_pack(void* pack_data,int* len)
 {
-	start_rsp_init(pack_data);
 	int pack_size = start_rsp_get_packed_size(pack_data);
 	uint8_t* out_buf = (uint8_t*)malloc(pack_size + PROTO_HEAD_SIZE);
 	if(out_buf == NULL)
@@ -488,7 +485,6 @@ uint8_t* start_rsp_data_pack(void* pack_data,int* len)
 
 uint8_t* new_enemy_data_pack(void* pack_data,int* len)
 {
-	new_enemy_init(pack_data);
 	int pack_size = new_enemy_get_packed_size(pack_data);
 	uint8_t* out_buf = (uint8_t*)malloc(pack_size + PROTO_HEAD_SIZE);
 	if(out_buf == NULL)
@@ -505,7 +501,6 @@ uint8_t* new_enemy_data_pack(void* pack_data,int* len)
 
 uint8_t* login_end_data_pack(void* pack_data,int* len)
 {
-	login_end_init(pack_data);
 	int pack_size = login_end_get_packed_size(pack_data);
 	uint8_t* out_buf = (uint8_t*)malloc(pack_size + PROTO_HEAD_SIZE);
 	if(out_buf == NULL)

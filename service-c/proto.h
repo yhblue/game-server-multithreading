@@ -38,74 +38,6 @@ typedef struct _StartRsp     start_rsp;
 typedef struct _LoginEnd 	 login_end;
 
 
-static login_rsp* login_rsp_creat(bool success,int x,int y,int enemy_num,int uid)
-{
-	login_rsp* rsp = (login_rsp*)malloc(sizeof(login_rsp));
-	if(rsp == NULL)
-	{
-		return NULL;
-	}
-	rsp->success = success;
-	rsp->point_x = x;
-	rsp->point_y = y;
-	rsp->enemy_num = enemy_num; 
-//	rsp->uid = uid;  //这个字段要加上
-
-	return rsp;
-}
-
-static start_rsp* start_rsp_creat(bool start)
-{
-	start_rsp* rsp = (start_rsp*)malloc(sizeof(start_rsp));
-	if(rsp == NULL)
-	{
-		return NULL;
-	}
-	rsp->start = start;
-
-	return rsp;
-}
-
-static enemy_msg* enemy_msg_creat(int uid,int x,int y)
-{
-	enemy_msg* rsp = (enemy_msg*)malloc(sizeof(enemy_msg));
-	if(rsp == NULL)
-	{
-		return NULL;
-	}
-	rsp->uid = uid;
-	rsp->point_x = x;
-	rsp->point_y = y;
-
-	return rsp;	
-}
-
-static new_enemy* new_enemy_creat(int uid,int x,int y)
-{
-	new_enemy* rsp = (new_enemy*)malloc(sizeof(new_enemy));
-	if(rsp == NULL)
-	{
-		return NULL;
-	}
-	rsp->uid = uid;
-	rsp->point_x = x;
-	rsp->point_y = y;
-
-	return rsp;
-}
-
-static login_end* login_end_creat(bool end)
-{
-	login_end* rsp = (login_end*)malloc(sizeof(login_end));
-	if(rsp == NULL)
-	{
-		return NULL;
-	}
-	rsp->success = end;
-
-	return rsp;
-}
-
 //***********************************************************************************************************//
 //login_rsp:
 static inline
@@ -272,5 +204,80 @@ void login_end_free_unpacked(void* message,ProtobufCAllocator* allocator)
 }
 
 
+
+
+/****************************************************************************************/
+static login_rsp* login_rsp_creat(bool success,int x,int y,int enemy_num,int uid)
+{
+	login_rsp* rsp = (login_rsp*)malloc(sizeof(login_rsp));
+	if(rsp == NULL)
+	{
+		return NULL;
+	}
+	login_rsp_init(rsp);
+	rsp->success = success;
+	rsp->point_x = x;
+	rsp->point_y = y;
+	rsp->enemy_num = enemy_num; 
+	rsp->uid = uid;  //这个字段要加上
+
+	return rsp;
+}
+
+static start_rsp* start_rsp_creat(bool start)
+{
+	start_rsp* rsp = (start_rsp*)malloc(sizeof(start_rsp));
+	if(rsp == NULL)
+	{
+		return NULL;
+	}
+	start_rsp_init(rsp);
+	rsp->start = start;
+
+	return rsp;
+}
+
+static enemy_msg* enemy_msg_creat(int uid,int x,int y)
+{
+	enemy_msg* rsp = (enemy_msg*)malloc(sizeof(enemy_msg));
+	if(rsp == NULL)
+	{
+		return NULL;
+	}
+	enemy_msg_init(rsp);
+	rsp->uid = uid;
+	rsp->point_x = x;
+	rsp->point_y = y;
+
+	return rsp;	
+}
+
+static new_enemy* new_enemy_creat(int uid,int x,int y)
+{
+	new_enemy* rsp = (new_enemy*)malloc(sizeof(new_enemy));
+	if(rsp == NULL)
+	{
+		return NULL;
+	}
+	new_enemy_init(rsp);
+	rsp->uid = uid;
+	rsp->point_x = x;
+	rsp->point_y = y;
+
+	return rsp;
+}
+
+static login_end* login_end_creat(bool end)
+{
+	login_end* rsp = (login_end*)malloc(sizeof(login_end));
+	if(rsp == NULL)
+	{
+		return NULL;
+	}
+	login_end_init(rsp);
+	rsp->success = end;
+
+	return rsp;
+}
 
 #endif
