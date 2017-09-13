@@ -113,19 +113,6 @@ static int game_route_table_creat(game_logic* gl,game_logic_start* start)
 		fprintf(ERR_FILE,"game_route_table_creat:route malloc failed\n");
 		return -1;   		
 	}
-
-	// gl->route->uid_2_playid = (player_id*)malloc(sizeof(player_id) * MAX_SOCKET); //uid->playerid 的映射表
-	// if(gl->route->uid_2_playid == NULL)											  //可能以后会从主线程中传递进来
-	// {
-	// 	fprintf(ERR_FILE,"game_route_table_creat:route malloc failed\n");
-	// 	return -1;    			
-	// }
-	// for(int i=0; i<MAX_SOCKET; i++)
-	// {
-	// 	gl->route->uid_2_playid[i].state = STATE_TYPE_INVALID;
-	// 	gl->route->uid_2_playid[i].mapid = 0;
-	// 	gl->route->uid_2_playid[i].map_playerid = 0;
-	// }
 	gl->route->uid_2_playid = start->uid_2_playid;
 
 	gl->route->player_num = 0;
@@ -364,6 +351,7 @@ static int game_route_del(game_logic* gl,int uid)
 		int map_playerid = gl->route->uid_2_playid[uid].map_playerid;
 		gl->route->map_player_num[map_id] --; 							 
 		gl->route->player_num --;			  							 
+		
 		if(gl->route->map_player_socket_uid[map_id][map_playerid] == uid)
 		{
 			gl->route->map_player_socket_uid[map_id][map_playerid] = PLAYER_UID_NULL;
@@ -806,34 +794,3 @@ void* game_logic_service_loop(void* arg)
 	return NULL;
 }
 
-
-
-/*
-
-//更新这个地图的广播列表
-static int update_map_broadcast_list(game_logic* gl,player_id* user_id)
-{
-	broadcast_list* list = (broadcast_list*)malloc(sizeof(broadcast_list));
-	if(list != NULL)
-	{
-		int index = 0;
-		list->broadcast_player_num = gl->map_player_num[user_id->mapid];
-		for(int i=0; i<MAX_PLAYER_EACH_MAP; i++)
-		{
-			if(gl->map_player_socket_uid[user_id->mapid][i] != PLAYER_UID_NULL)
-			{
-				list->uid_list[index++] = gl->map_player_socket_uid[user_id->mapid][i]; //得到不为空的玩家列表信息
-				if(index == list->broadcast_player_num)
-				{
-					break; //人数足够了,则剩余的都为空
-				}
-			}
-		}
-	}
-	else
-	{
-		return -1;
-	}
-	return list;
-}
-*/

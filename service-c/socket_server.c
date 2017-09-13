@@ -139,9 +139,9 @@ static struct socket* apply_socket(struct socket_server *ss,int fd,int id,bool a
 	 	return NULL;
 	}
 
-	printf("---------------------------------------------id = %d\n",id);
-	printf("---------------------------------------------id / MAX_SOCKET = %d\n",id % MAX_SOCKET);
-	printf("---------------------------------------------s->type = %d\n",s->type);
+	printf("id = %d\n",id);
+	printf("id / MAX_SOCKET = %d\n",id % MAX_SOCKET);
+	printf("s->type = %d\n",s->type);
 
 	assert(s->type == SOCKET_TYPE_INVALID);
 
@@ -182,7 +182,6 @@ static int do_listen(const char* host,int port,int max_connect)
     serv_addr.sin_family = AF_INET;  	//ipv4
     serv_addr.sin_addr.s_addr = inet_addr(host);
     serv_addr.sin_port = htons(port);              //主机->网络
-    printf(":::::::network io service address = %s listen port = %d:::::::::\n",host,port);
 
     int optval = 1;
     if(setsockopt(listen_fd,SOL_SOCKET,SO_REUSEADDR,&optval,sizeof(optval)) == -1)
@@ -464,12 +463,11 @@ static int send_data(struct socket_server* ss,struct socket *s,void* buf,int len
 		}
 		if(n == len) //send success
 		{		
-			printf("^^^^^^n=len=%d\n",n);
 			return 0;
 		}
 		if(n < len)  //send buffer full
 		{
-			printf("############append data###################\n");
+			printf("------------append data------------\n");
 			append_remaindata(s,buf,len,n); 		 	//append to buffer
 			epoll_write(ss->epoll_fd,s->fd,s,true);
 		}		
@@ -498,7 +496,6 @@ static int broadcast_user_msg(struct socket_server* ss,q_node* qnode)
 		printf("^^^^^^^^^^^netio:broadcast to uid = %d^^^^^^^^^^^^^^^^^^\n",id);
 		struct socket *s = &ss->socket_pool[id % MAX_SOCKET];
 		send_data(ss,s,msg_buf,request_len);
-		printf(">>>>>>>>>send data end<<<<<<<<<<<<<<<<\n");
 	}
 
 	if(msg_head != NULL)

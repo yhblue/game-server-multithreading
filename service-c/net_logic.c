@@ -48,6 +48,7 @@
 #define PLAYER_TYPE_INVALID		   -1
 
 #define PROTO_HEAD_SIZE				2
+#define PROTO_TYPE_SIZE 			1
 #define HEAD_PROTO_TYPE_INDEX		0
 #define HEAD_PROTO_SIZE_INDEX		1
 
@@ -216,11 +217,10 @@ int route_get_msg_socket(net_logic* nl,int socket_id)
 //这个函数看看能不能改一下，这个函数必须依赖网络IO线程按照指定格式读，这样效率低
 static deserialize* unpack_user_data(unsigned char * data_pack,int len)
 {
-	unsigned char proto_type = data_pack[0]; 	 //记录用的.proto文件中哪个message来序列化  
-	printf("&&&---------unpack_user_data: proto_type = %c ----\n",proto_type);
-	unsigned char* seria_data = data_pack + 1;   //data_pack 是网络IO线程中分配的内存，反序列化完之后free掉
+	unsigned char proto_type = data_pack[HEAD_PROTO_TYPE_INDEX]; 	 //记录用的.proto文件中哪个message来序列化  
+	unsigned char* seria_data = data_pack + PROTO_TYPE_SIZE;      //data_pack 是网络IO线程中分配的内存，反序列化完之后free掉
 	deserialize* data = (deserialize*)malloc(sizeof(deserialize));
-	int data_len = len -1; //减去第一个字节包头
+	int data_len = len - PROTO_TYPE_SIZE; //减去第一个字节包头
 	void * msg = NULL;
 	switch(proto_type)
 	{
@@ -315,7 +315,6 @@ static net_logic* net_logic_creat(net_logic_start* start)
 	return nt;
 }
 
-//configure* config,
 net_logic_start* net_logic_start_creat(queue* que_pool,configure* conf,int service_id)
 {
 	net_logic_start* start = malloc(sizeof(net_logic_start));
@@ -329,8 +328,6 @@ net_logic_start* net_logic_start_creat(queue* que_pool,configure* conf,int servi
 	start->service_id = service_id;
 	start->netio_addr = conf->service_address;
 	start->netio_port = conf->service_port;
-
-	printf("start->netio_addr = %s\n",start->netio_addr);
 
 	start->service_addr = conf->service_address;
 	start->service_port = conf->service_route_port; //监听的 address 和 socket
@@ -418,7 +415,7 @@ static int dispose_netio_service_que(net_logic* nl,q_node* qnode)
 			printf("^^^^^^ netlogic type = TYPE_CLOSE ^^^^^^^^^^^\n");
 			q_node* send_qnode = pack_inform_data(uid,type); 
 			send_msg_2_game_logic(nl,send_qnode,uid);
-			route_clear_gamelogic_id(nl,uid);  //清空路由表对应的socket位置
+			route_clear_gamelogic_id(nl,uid);  									//清空路由表对应的socket位置
 			break;
 		}
 		
@@ -708,7 +705,6 @@ static int netlogic_lisen_creat(net_logic* nl)
     serv_addr.sin_family = AF_INET;   //ipv4
     serv_addr.sin_addr.s_addr = inet_addr(nl->serv_addr);
     serv_addr.sin_port = htons(nl->serv_port);      //主机->网络 nl->serv_port
-    printf(":::::::net route service: listen port = %d::::::::::\n",nl->serv_port);
 
     int optval = 1;
     if(setsockopt(listen_fd,SOL_SOCKET,SO_REUSEADDR,&optval,sizeof(optval)) == -1)
@@ -764,13 +760,12 @@ static int connect_netio_service(net_logic* nl,char* netio_addr,int netio_port)
        perror("netlogic bind err");
        return -1;    	
     }
-
     //set service address
     memset(&netio_server_addr,0,sizeof(netio_server_addr));
     netio_server_addr.sin_family = AF_INET;
     netio_server_addr.sin_port = htons(netio_port);
     netio_server_addr.sin_addr.s_addr = inet_addr(netio_addr);
-    printf("\n\n\n\nnet route:connect address = %s port = %d\n",netio_addr,netio_port);
+
     for( ;; )
     {
 	    if((connect(sockfd,(struct sockaddr*)(&netio_server_addr),sizeof(struct sockaddr))) == -1)
@@ -796,7 +791,6 @@ static int connect_netio_service(net_logic* nl,char* netio_addr,int netio_port)
 		    } 	
 		    return 0;    	
 	    }	
-  	
     }
     return 0;
 }
