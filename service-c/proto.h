@@ -28,6 +28,9 @@
 
 #define LOGIN_END 			'i'
 
+#define LEAVE_REQ			'V'
+#define LEAVE_RSP			'v'
+
 typedef struct _HeroMsg      hero_msg;
 typedef struct _LoginReq     login_req;
 typedef struct _LoginRsp     login_rsp;

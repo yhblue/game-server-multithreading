@@ -455,7 +455,7 @@ static int send_data(struct socket_server* ss,struct socket *s,void* buf,int len
 					n = 0;
 					break;
 				default:
-					fprintf(ERR_FILE, "************socket_server_send: write to fd=%d error.************",s->fd);			
+					fprintf(ERR_FILE, "socket_server_send: write to fd=%d error.",s->fd);			
 					close_fd(ss,s,NULL);
 					report_socket_error(ss,s->id);
 					return -1;
