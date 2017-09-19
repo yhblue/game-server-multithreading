@@ -315,7 +315,61 @@ static void report_socket_error(struct socket_server* ss,int uid)
 	send_client_msg2net_logic(ss,qnode);         	//通知 netlogic service
 }
 
+int readn(int fd,void* buffer,int nsize)
+{
+	int nleft = nsize;
+	char* buf = (char*)buffer;
+	int nread = 0
+	while(nleft > 0)
+	{
+		if(nread == read(fd,buf,nleft) == -1)
+		{
+			if(errno == EINTR || errno == EAGAIN)
+				continue;
+			return -1;
+		}
+		else if(nread == 0) //close
+			return -1;
+		buf += nread;
+		nleft -= nread
+	}
+	return 0;
+}
 
+static int dispose_readmessage(struct socket_server *ss,struct socket *s, struct socket_message * result)
+{
+	unsigned char len = 0;
+	char* buffer  = NULL;
+	if(readn(s->fd,&len,DATA_LEN_SIZE) < 0)
+		goto _err;
+
+	buffer = (char*)malloc(len);
+	if(buffer == NULL) 
+	{
+		fprintf(ERR_FILE,"dispose_readmessage: result->buffer is NULL\n");
+		return -1;
+	}
+	memset(buffer,0,len);
+
+	if(readn(s->fd,buffer,len) < 0)
+		goto _err;	
+
+	result->id = s->id;
+	result->lid_size = n;
+	result->data = buffer;  
+	return SOCKET_DATA;	
+
+_err:
+	if(buffer != NULL)
+	{
+		free(buffer);
+		buffer = NULL;
+	}
+	close_fd(ss,s,result);
+	return SOCKET_CLOSE;
+}
+
+/*
 //处理epoll的可读事件
 //这个函数还需要改，如果第二次读len长度数据时候被信号中断了改怎么办
 //s中再增加一个成员记录？如果是0则不处理，如果不为0则按这个长度读？
@@ -388,7 +442,7 @@ _err:
 	return -1;
 }
 
-
+*/
 //把应用层缓冲区中的数据发送出去
 static int send_buffer(struct socket_server* ss,struct socket *s,struct socket_message *result)
 {

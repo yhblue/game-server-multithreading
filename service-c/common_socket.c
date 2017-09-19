@@ -32,6 +32,7 @@ int readn(int fd, void *buf, int count)
 	return count;
 }
 
+
 /**
  * writen - 发送固定字节数
  * @fd: 文件描述符
