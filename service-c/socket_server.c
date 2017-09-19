@@ -323,6 +323,7 @@ static int dispose_readmessage(struct socket_server *ss,struct socket *s, struct
 {
 	unsigned char len = 0;
 	char* buffer  = NULL;
+	//sleep(1);
 	int n = (int)read(s->fd,&len,DATA_LEN_SIZE);
 	if(n <= 0)
 		goto _err;
