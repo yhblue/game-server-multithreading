@@ -598,13 +598,13 @@ static int dispose_game_logic(game_logic* gl,q_node* qnode)
 		switch(head->proto_type)
 		{
 			case LOG_REQ: 		 //登陆请求
-				printf("#######game:recieve que login require#######\n");
+				printf("#######game:recieve que login request#######\n");
 				dispose_login_request(gl,user_id,data,uid);
 				break;
 
 			case GAME_START_REQ: //开始游戏请求
 				//广播新玩家进入地图 -> 地图人数+1 -> 广播列表追加 -> 回应开始游戏
-				printf("#######game:recieve que game start require#######\n");
+				printf("#######game:recieve que game start request#######\n");
 				dispose_start_request(gl,user_id,data,uid); //this function have error
 				break;
 		}

@@ -340,7 +340,7 @@ static int dispose_readmessage(struct socket_server *ss,struct socket *s, struct
 
 	if(n <= 0)
 		goto _err;
-
+	printf("need len = %d, read is len = %d\n",len,n);
 	assert(n == len);
 
 	result->id = s->id;
