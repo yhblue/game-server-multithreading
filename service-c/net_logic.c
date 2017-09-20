@@ -580,7 +580,6 @@ static int dispose_queue_event(net_logic* nl)
 		{
 			case SERVICE_TYPE_NET_IO:			
 				dispose_netio_service_que(nl,qnode);
-				//printf("dispose_netio_service_que\n");
 				break;
 
 			case SERVICE_TYPE_GAME_LOGIC:
@@ -897,10 +896,6 @@ static int service_connect_establish(net_logic_start* start,net_logic* nl)
 
 void* net_logic_service_loop(void* arg)
 {
-	// while(1)
-	// {
-	// 	usleep(20);
-	// }
 	net_logic_start* start = arg;
 	net_logic *nt = net_logic_creat(start);
 	if(nt == NULL)

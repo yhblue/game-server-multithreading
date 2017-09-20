@@ -767,11 +767,7 @@ static int connect_netlogic_service(game_logic* gl)
 
 
 void* game_logic_service_loop(void* arg)
-{
-	// while(1)
-	// {
-	// 	usleep(15);
-	// }	
+{	
 	game_logic_start* start = (game_logic_start*)arg;
 	game_logic* gl = game_logic_creat(start);
 

@@ -692,7 +692,7 @@ static int dispose_queue_event(struct socket_server *ss)
 	{
 		//把消息队列的数据的内容部分广播给指定玩家
 		printf("/************broadcast data to client*****************/\n");
-		//broadcast_user_msg(ss,qnode);
+		broadcast_user_msg(ss,qnode);
 		if(qnode != NULL)
 		{
 			free(qnode);
