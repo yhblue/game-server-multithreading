@@ -666,7 +666,7 @@ static int dispose_queue_event(struct socket_server *ss)
 	{
 		//把消息队列的数据的内容部分广播给指定玩家
 		printf("/************broadcast data to client*****************/\n");
-		broadcast_user_msg(ss,qnode);
+		//broadcast_user_msg(ss,qnode);
 		if(qnode != NULL)
 		{
 			free(qnode);
@@ -730,6 +730,7 @@ static int socket_server_event(struct socket_server *ss, struct socket_message *
 				return -1;
 			}	
 			ss->event_index = 0;
+			printf("sepoll_wait return event = %d\n",ss->event_n);
 		}
 		struct event* eve = &ss->event_pool[ss->event_index++];
 		struct socket *s = eve->s_p; 
@@ -911,10 +912,6 @@ static int wait_netlogic_service_connect(struct socket_server* ss)
 //socket_server thread loop
 void* network_io_service_loop(void* arg)
 {
-	// while(1)
-	// {
-	// 	usleep(100);
-	// }
 	net_io_start* start = (net_io_start*)arg;
 	struct socket_server* ss = socket_server_create(start);
 	if(ss == NULL)
@@ -967,6 +964,7 @@ void* network_io_service_loop(void* arg)
 				break;
 
 			default:
+				printf("nothing\n");
 				break;	
 		}
 	}
