@@ -74,7 +74,7 @@ struct socket_server
     int port;
     int listen_fd;
     int alloc_id;				  //用于记录本次分配了的最后一个id
-    struct socket* socket_netlog;
+    int socket_netlog;			  //与net_route service 通信的 socket
     bool que_check;               //检测消息队列的标志位
 };
 
@@ -303,9 +303,7 @@ static void send_client_msg2net_logic(struct socket_server* ss,q_node* qnode)
 		return; 		
 	}
 	queue_push(ss->io2netlogic_que,qnode); //封装成一个send函数
-
-	int socket = (ss->socket_netlog)->fd;
-	send_msg2_service(socket);			   //发送通知给 net_logic service
+	send_msg2_service(ss->socket_netlog);  //发送通知给 net_logic service
 }
 
 static void report_socket_error(struct socket_server* ss,int uid)
@@ -336,7 +334,7 @@ int readn(int fd,void* buffer,int nsize)
 	return 0;
 }
 
-/*
+
 static int dispose_readmessage(struct socket_server *ss,struct socket *s, struct socket_message * result)
 {
 	unsigned char len = 0;
@@ -369,8 +367,7 @@ _err:
 	close_fd(ss,s,result);
 	return SOCKET_CLOSE;
 }
-*/
-
+/*
 //处理epoll的可读事件
 //这个函数还需要改，如果第二次读len长度数据时候被信号中断了改怎么办
 //s中再增加一个成员记录？如果是0则不处理，如果不为0则按这个长度读？
@@ -441,6 +438,35 @@ _err:
 		 return SOCKET_CLOSE;
 	}
 	return -1;
+}
+*/
+
+static int dispose_service_read_msg(int sev_fd)
+{
+	char buf[64] = {0};
+	int n = read(sev_fd,buf,sizeof(buf));  //写到了这里接着写下去
+	buf[n] = '\0';
+	if(n < 0)
+	{
+		switch(errno)
+		{ 
+			case EINTR:
+				fprintf(ERR_FILE,"dispose_netio_process_read_msg: socket read,EINTR\n");
+				break;    	// wait for next time
+			case EAGAIN:		
+				fprintf(ERR_FILE,"dispose_netio_process_read_msg: socket read,EAGAIN\n");
+				break;
+			default:
+				close(sev_fd);
+				return -1;			
+		}
+	}
+	if(n == 0) 
+	{
+		close(sev_fd);
+		return -1;
+	}	
+	return 0;
 }
 
 //把应用层缓冲区中的数据发送出去
@@ -742,6 +768,7 @@ static int socket_server_event(struct socket_server *ss, struct socket_message *
 		switch(s->type) 
 		{
 			case SOCKET_TYPE_NETLOGIC:
+				dispose_service_read_msg(ss->socket_netlog);
 				ss->que_check = true;
 				break;					
 
@@ -893,7 +920,7 @@ static int wait_netlogic_service_connect(struct socket_server* ss)
 					return -1;
 				}
 				s->type = SOCKET_TYPE_NETLOGIC;//标记为与网络逻辑线程通信的socket
-				ss->socket_netlog = s;		   //与netlogic通信的socket，记录下来
+				ss->socket_netlog = socket;		   //与netlogic通信的socket，记录下来
 
 				printf("netio:accept net_logic service connect!\n");	
 				return 0;

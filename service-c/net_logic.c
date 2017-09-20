@@ -601,7 +601,7 @@ static int dispose_queue_event(net_logic* nl)
 	return 0;
 }
 
-static int dispose_service_read_msg(net_logic* nt,service* sv)
+static int dispose_service_read_msg(service* sv)
 {
 	char buf[64] = {0};
 	int n = read(sv->sock_fd,buf,sizeof(buf));  //写到了这里接着写下去
@@ -670,7 +670,7 @@ static int net_logic_event(net_logic *nt)
 				nt->check_que = true;
 				if(eve->read)
 				{
-					int type = dispose_service_read_msg(nt,sv);
+					int type = dispose_service_read_msg(sv);
 					printf("SERVICE_TYPE = SERVICE_TYPE_NET_IO,netlogic epoll work\n");
 					return type;
 				}
@@ -682,7 +682,7 @@ static int net_logic_event(net_logic *nt)
 				nt->check_que = true;
 				if(eve->read)
 				{
-					int type = dispose_service_read_msg(nt,sv);
+					int type = dispose_service_read_msg(sv);
 					printf("SERVICE_TYPE = SERVICE_TYPE_GAME_LOGIC,netlogic epoll work\n");
 					return type;
 				}
