@@ -480,6 +480,92 @@ void   leave_rsp__free_unpacked
   assert(message->base.descriptor == &leave_rsp__descriptor);
   protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
 }
+void   move_req__init
+                     (MoveReq         *message)
+{
+  static MoveReq init_value = MOVE_REQ__INIT;
+  *message = init_value;
+}
+size_t move_req__get_packed_size
+                     (const MoveReq *message)
+{
+  assert(message->base.descriptor == &move_req__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t move_req__pack
+                     (const MoveReq *message,
+                      uint8_t       *out)
+{
+  assert(message->base.descriptor == &move_req__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t move_req__pack_to_buffer
+                     (const MoveReq *message,
+                      ProtobufCBuffer *buffer)
+{
+  assert(message->base.descriptor == &move_req__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+MoveReq *
+       move_req__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (MoveReq *)
+     protobuf_c_message_unpack (&move_req__descriptor,
+                                allocator, len, data);
+}
+void   move_req__free_unpacked
+                     (MoveReq *message,
+                      ProtobufCAllocator *allocator)
+{
+  assert(message->base.descriptor == &move_req__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
+void   move_rsp__init
+                     (MoveRsp         *message)
+{
+  static MoveRsp init_value = MOVE_RSP__INIT;
+  *message = init_value;
+}
+size_t move_rsp__get_packed_size
+                     (const MoveRsp *message)
+{
+  assert(message->base.descriptor == &move_rsp__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t move_rsp__pack
+                     (const MoveRsp *message,
+                      uint8_t       *out)
+{
+  assert(message->base.descriptor == &move_rsp__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t move_rsp__pack_to_buffer
+                     (const MoveRsp *message,
+                      ProtobufCBuffer *buffer)
+{
+  assert(message->base.descriptor == &move_rsp__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+MoveRsp *
+       move_rsp__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (MoveRsp *)
+     protobuf_c_message_unpack (&move_rsp__descriptor,
+                                allocator, len, data);
+}
+void   move_rsp__free_unpacked
+                     (MoveRsp *message,
+                      ProtobufCAllocator *allocator)
+{
+  assert(message->base.descriptor == &move_rsp__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
 static const ProtobufCFieldDescriptor hero_msg__field_descriptors[3] =
 {
   {
@@ -763,8 +849,20 @@ static const ProtobufCFieldDescriptor login_rsp__field_descriptors[5] =
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
   {
-    "point_x",
+    "uid",
     2,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_INT32,
+    0,   /* quantifier_offset */
+    offsetof(LoginRsp, uid),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "point_x",
+    3,
     PROTOBUF_C_LABEL_REQUIRED,
     PROTOBUF_C_TYPE_INT32,
     0,   /* quantifier_offset */
@@ -776,7 +874,7 @@ static const ProtobufCFieldDescriptor login_rsp__field_descriptors[5] =
   },
   {
     "point_y",
-    3,
+    4,
     PROTOBUF_C_LABEL_REQUIRED,
     PROTOBUF_C_TYPE_INT32,
     0,   /* quantifier_offset */
@@ -788,7 +886,7 @@ static const ProtobufCFieldDescriptor login_rsp__field_descriptors[5] =
   },
   {
     "enemy_num",
-    4,
+    5,
     PROTOBUF_C_LABEL_REQUIRED,
     PROTOBUF_C_TYPE_INT32,
     0,   /* quantifier_offset */
@@ -798,25 +896,13 @@ static const ProtobufCFieldDescriptor login_rsp__field_descriptors[5] =
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
-  {
-    "uid",
-    5,
-    PROTOBUF_C_LABEL_REQUIRED,
-    PROTOBUF_C_TYPE_INT32,
-    0,   /* quantifier_offset */
-    offsetof(LoginRsp, uid),
-    NULL,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
 };
 static const unsigned login_rsp__field_indices_by_name[] = {
-  3,   /* field[3] = enemy_num */
-  1,   /* field[1] = point_x */
-  2,   /* field[2] = point_y */
+  4,   /* field[4] = enemy_num */
+  2,   /* field[2] = point_x */
+  3,   /* field[3] = point_y */
   0,   /* field[0] = success */
-  4,   /* field[4] = uid */
+  1,   /* field[1] = uid */
 };
 static const ProtobufCIntRange login_rsp__number_ranges[1 + 1] =
 {
@@ -1026,5 +1112,120 @@ const ProtobufCMessageDescriptor leave_rsp__descriptor =
   leave_rsp__field_indices_by_name,
   1,  leave_rsp__number_ranges,
   (ProtobufCMessageInit) leave_rsp__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor move_req__field_descriptors[1] =
+{
+  {
+    "move",
+    1,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_INT32,
+    0,   /* quantifier_offset */
+    offsetof(MoveReq, move),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned move_req__field_indices_by_name[] = {
+  0,   /* field[0] = move */
+};
+static const ProtobufCIntRange move_req__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 1 }
+};
+const ProtobufCMessageDescriptor move_req__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "move_req",
+  "MoveReq",
+  "MoveReq",
+  "",
+  sizeof(MoveReq),
+  1,
+  move_req__field_descriptors,
+  move_req__field_indices_by_name,
+  1,  move_req__number_ranges,
+  (ProtobufCMessageInit) move_req__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor move_rsp__field_descriptors[4] =
+{
+  {
+    "success",
+    1,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_BOOL,
+    0,   /* quantifier_offset */
+    offsetof(MoveRsp, success),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "uid",
+    2,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_INT32,
+    0,   /* quantifier_offset */
+    offsetof(MoveRsp, uid),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "pos_x",
+    3,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_INT32,
+    0,   /* quantifier_offset */
+    offsetof(MoveRsp, pos_x),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "pos_y",
+    4,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_INT32,
+    0,   /* quantifier_offset */
+    offsetof(MoveRsp, pos_y),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned move_rsp__field_indices_by_name[] = {
+  2,   /* field[2] = pos_x */
+  3,   /* field[3] = pos_y */
+  0,   /* field[0] = success */
+  1,   /* field[1] = uid */
+};
+static const ProtobufCIntRange move_rsp__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 4 }
+};
+const ProtobufCMessageDescriptor move_rsp__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "move_rsp",
+  "MoveRsp",
+  "MoveRsp",
+  "",
+  sizeof(MoveRsp),
+  4,
+  move_rsp__field_descriptors,
+  move_rsp__field_indices_by_name,
+  1,  move_rsp__number_ranges,
+  (ProtobufCMessageInit) move_rsp__init,
   NULL,NULL,NULL    /* reserved[123] */
 };

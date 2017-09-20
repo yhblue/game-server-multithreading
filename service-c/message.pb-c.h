@@ -26,6 +26,8 @@ typedef struct _StartRsp StartRsp;
 typedef struct _LoginEnd LoginEnd;
 typedef struct _LeaveReq LeaveReq;
 typedef struct _LeaveRsp LeaveRsp;
+typedef struct _MoveReq MoveReq;
+typedef struct _MoveRsp MoveRsp;
 
 
 /* --- enums --- */
@@ -93,10 +95,10 @@ struct  _LoginRsp
 {
   ProtobufCMessage base;
   protobuf_c_boolean success;
+  int32_t uid;
   int32_t point_x;
   int32_t point_y;
   int32_t enemy_num;
-  int32_t uid;
 };
 #define LOGIN_RSP__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&login_rsp__descriptor) \
@@ -151,6 +153,29 @@ struct  _LeaveRsp
 #define LEAVE_RSP__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&leave_rsp__descriptor) \
     , 0 }
+
+
+struct  _MoveReq
+{
+  ProtobufCMessage base;
+  int32_t move;
+};
+#define MOVE_REQ__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&move_req__descriptor) \
+    , 0 }
+
+
+struct  _MoveRsp
+{
+  ProtobufCMessage base;
+  protobuf_c_boolean success;
+  int32_t uid;
+  int32_t pos_x;
+  int32_t pos_y;
+};
+#define MOVE_RSP__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&move_rsp__descriptor) \
+    , 0, 0, 0, 0 }
 
 
 /* HeroMsg methods */
@@ -362,6 +387,44 @@ LeaveRsp *
 void   leave_rsp__free_unpacked
                      (LeaveRsp *message,
                       ProtobufCAllocator *allocator);
+/* MoveReq methods */
+void   move_req__init
+                     (MoveReq         *message);
+size_t move_req__get_packed_size
+                     (const MoveReq   *message);
+size_t move_req__pack
+                     (const MoveReq   *message,
+                      uint8_t             *out);
+size_t move_req__pack_to_buffer
+                     (const MoveReq   *message,
+                      ProtobufCBuffer     *buffer);
+MoveReq *
+       move_req__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   move_req__free_unpacked
+                     (MoveReq *message,
+                      ProtobufCAllocator *allocator);
+/* MoveRsp methods */
+void   move_rsp__init
+                     (MoveRsp         *message);
+size_t move_rsp__get_packed_size
+                     (const MoveRsp   *message);
+size_t move_rsp__pack
+                     (const MoveRsp   *message,
+                      uint8_t             *out);
+size_t move_rsp__pack_to_buffer
+                     (const MoveRsp   *message,
+                      ProtobufCBuffer     *buffer);
+MoveRsp *
+       move_rsp__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   move_rsp__free_unpacked
+                     (MoveRsp *message,
+                      ProtobufCAllocator *allocator);
 /* --- per-message closures --- */
 
 typedef void (*HeroMsg_Closure)
@@ -397,6 +460,12 @@ typedef void (*LeaveReq_Closure)
 typedef void (*LeaveRsp_Closure)
                  (const LeaveRsp *message,
                   void *closure_data);
+typedef void (*MoveReq_Closure)
+                 (const MoveReq *message,
+                  void *closure_data);
+typedef void (*MoveRsp_Closure)
+                 (const MoveRsp *message,
+                  void *closure_data);
 
 /* --- services --- */
 
@@ -414,6 +483,8 @@ extern const ProtobufCMessageDescriptor start_rsp__descriptor;
 extern const ProtobufCMessageDescriptor login_end__descriptor;
 extern const ProtobufCMessageDescriptor leave_req__descriptor;
 extern const ProtobufCMessageDescriptor leave_rsp__descriptor;
+extern const ProtobufCMessageDescriptor move_req__descriptor;
+extern const ProtobufCMessageDescriptor move_rsp__descriptor;
 
 PROTOBUF_C__END_DECLS
 

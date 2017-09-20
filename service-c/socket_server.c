@@ -319,10 +319,10 @@ int readn(int fd,void* buffer,int nsize)
 {
 	int nleft = nsize;
 	char* buf = (char*)buffer;
-	int nread = 0
+	int nread = 0;
 	while(nleft > 0)
 	{
-		if(nread == read(fd,buf,nleft) == -1)
+		if((nread = read(fd,buf,nleft)) == -1)
 		{
 			if(errno == EINTR || errno == EAGAIN)
 				continue;
@@ -331,11 +331,12 @@ int readn(int fd,void* buffer,int nsize)
 		else if(nread == 0) //close
 			return -1;
 		buf += nread;
-		nleft -= nread
+		nleft -= nread;
 	}
 	return 0;
 }
 
+/*
 static int dispose_readmessage(struct socket_server *ss,struct socket *s, struct socket_message * result)
 {
 	unsigned char len = 0;
@@ -355,7 +356,7 @@ static int dispose_readmessage(struct socket_server *ss,struct socket *s, struct
 		goto _err;	
 
 	result->id = s->id;
-	result->lid_size = n;
+	result->lid_size = len;
 	result->data = buffer;  
 	return SOCKET_DATA;	
 
@@ -368,8 +369,8 @@ _err:
 	close_fd(ss,s,result);
 	return SOCKET_CLOSE;
 }
+*/
 
-/*
 //处理epoll的可读事件
 //这个函数还需要改，如果第二次读len长度数据时候被信号中断了改怎么办
 //s中再增加一个成员记录？如果是0则不处理，如果不为0则按这个长度读？
@@ -377,7 +378,7 @@ static int dispose_readmessage(struct socket_server *ss,struct socket *s, struct
 {
 	unsigned char len = 0;
 	char* buffer  = NULL;
-	//sleep(1);
+	sleep(1);
 	int n = (int)read(s->fd,&len,DATA_LEN_SIZE);
 	if(n <= 0)
 		goto _err;
@@ -442,7 +443,6 @@ _err:
 	return -1;
 }
 
-*/
 //把应用层缓冲区中的数据发送出去
 static int send_buffer(struct socket_server* ss,struct socket *s,struct socket_message *result)
 {
@@ -911,6 +911,10 @@ static int wait_netlogic_service_connect(struct socket_server* ss)
 //socket_server thread loop
 void* network_io_service_loop(void* arg)
 {
+	// while(1)
+	// {
+	// 	usleep(100);
+	// }
 	net_io_start* start = (net_io_start*)arg;
 	struct socket_server* ss = socket_server_create(start);
 	if(ss == NULL)
