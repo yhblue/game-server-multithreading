@@ -991,7 +991,6 @@ void* network_io_service_loop(void* arg)
 				break;
 
 			default:
-				printf("nothing\n");
 				break;	
 		}
 	}
