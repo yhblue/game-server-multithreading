@@ -617,6 +617,7 @@ static int dispose_game_logic(game_logic* gl,q_node* qnode)
 //DATA		    -找到该玩家信息，对信息进行更新
 static int dispose_queue_event(game_logic* gl)
 {
+	static times = 0;
 	printf("game_logic port = %d dispose queue message\n",gl->service_port);
 	q_node* qnode = queue_pop(gl->service_que);
 	if(qnode == NULL) //队列无数据
@@ -630,7 +631,7 @@ static int dispose_queue_event(game_logic* gl)
 		switch(type)
 		{
 			case TYPE_DATA:	    //玩家数据
-				printf("\n\n<<<<<<<<game:client data>>>>>>>\n");
+				printf("\n\n<<<<<<<<game:client data times:%d>>>>>>>\n",times++);
 				dispose_game_logic(gl,qnode);
 				break;
 
