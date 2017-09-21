@@ -225,7 +225,7 @@ size_t leave_req_get_packed_size(const void* message)
 }
 
 static inline
-void* leave_req_pack(const void* message,uint8_t* out)
+size_t leave_req_pack(const void* message,uint8_t* out)
 {
 	return leave_req__pack(message,out);
 }
@@ -388,6 +388,8 @@ static leave_rsp* leave_rsp_creat(bool leave)
 	}
 	leave_rsp_init(rsp);
 	rsp->leave = leave;	
+
+	return rsp;
 }
 
 static move_rsp* move_rsp_creat(bool success,int uid,int pos_x,int pos_y)
@@ -397,11 +399,13 @@ static move_rsp* move_rsp_creat(bool success,int uid,int pos_x,int pos_y)
 	{
 		return NULL;
 	}	
-
+	move_rsp_init(rsp);
 	rsp->success = success;
 	rsp->uid = uid;
 	rsp->pos_x = pos_x;
 	rsp->pos_y = pos_y;
+
+	return rsp;
 }
 
 #endif

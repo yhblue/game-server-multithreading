@@ -596,7 +596,7 @@ static int dispose_start_request(game_logic* gl,player_id* user_id,void* data,in
 	return 0;
 }
 
-static move_rsp_send(game_logic* gl,player* user,bool success)
+static int move_rsp_send(game_logic* gl,player* user,bool success)
 {
 //	player* user = &(gl->map_player[user_id->mapid][user_id->map_playerid]);
 	int pos_x = user->pos.point_x;
@@ -631,6 +631,7 @@ static move_rsp_send(game_logic* gl,player* user,bool success)
 
 	queue_push(gl->que_2_net_logic,qnode);    
 	send_msg2_service(gl->sock_2_net_logic);	
+	return 0;
 }
 
 static int dispose_move_request(game_logic* gl,player_id* user_id,void* data)
@@ -642,41 +643,41 @@ static int dispose_move_request(game_logic* gl,player_id* user_id,void* data)
 	switch(move)
 	{
 		case MOVE_LEFT:
-			if((user.pos.point_x - user.tec.step) > 0)
+			if((user->pos.point_x - user->tec.step) > 0)
 			{
-				user.pos.point_x -= user.tec.step;
+				user->pos.point_x -= user->tec.step;
 				success = true;
 			}
 			break;
 		
 		case MOVE_RIGHT:
-			if((user.pos.point_x + user.tec.step) > MAP_NAX_X)
+			if((user->pos.point_x + user->tec.step) > MAP_NAX_X)
 			{
-				user.pos.point_x += user.tec.step;
+				user->pos.point_x += user->tec.step;
 				success = true;
 			}
 			break;
 
 		case MOVE_UP:
-			if((user.pos.point_y + user.tec.step) > MAP_NAX_Y)
+			if((user->pos.point_y + user->tec.step) > MAP_NAX_Y)
 			{
-				user.pos.point_y += user.tec.step;
+				user->pos.point_y += user->tec.step;
 				success = true;
 			}
 			break;
 		
 		case MOVE_DOWN:
-			if((user.pos.point_y - user.tec.step) > 0)
+			if((user->pos.point_y - user->tec.step) > 0)
 			{
-				user.pos.point_y -= user.tec.step;
+				user->pos.point_y -= user->tec.step;
 				success = true;
 			}
 			break;
-
-		move_rsp_send(gl,user,success);				//给请求方回应
-		broadcast_player_msg(gl,user_id,ENEMY_MSG);
 	}
-
+	move_rsp_send(gl,user,success);				//给请求方回应
+	broadcast_player_msg(gl,user_id,ENEMY_MSG);	
+	
+	return 0;
 }
 
 static int dispose_game_logic(game_logic* gl,q_node* qnode)
@@ -704,6 +705,7 @@ static int dispose_game_logic(game_logic* gl,q_node* qnode)
 			case MOVE_REQ://移动请求
 				//根据移动请求计算出下一刻应到达的位置->回应给请求的玩家->广播出去
 				printf("#######game:recieve que game move request#######\n");
+				dispose_move_request(gl,user_id,data);
 				break;
 		}
 	}
