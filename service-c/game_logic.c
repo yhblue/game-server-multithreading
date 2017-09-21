@@ -31,13 +31,22 @@
 
 #define START_POSITION_X				 0
 #define START_POSITION_Y				 0
-#define START_SPEED						 1
+#define START_STEP						 1
 #define MAX_USER_NAME_LEN				15
+
+#define MOVE_STOP		0
+#define MOVE_LEFT 		1  
+#define MOVE_RIGHT		2
+#define MOVE_UP			3
+#define MOVE_DOWN       4            
+
+#define MAP_NAX_X	  960
+#define MAP_NAX_Y     560
 
 typedef struct _player_msg
 {
 	int uid;
-	char name[MAX_USER_NAME_LEN+1];
+	char name[MAX_USER_NAME_LEN + 1];
 }player_msg;
 
 typedef struct _position
@@ -48,15 +57,15 @@ typedef struct _position
 
 typedef struct _technique
 {
-	int speed;
+	int step;
 }technique;
 
 typedef struct _player
 {
 	char state;
+	technique tec;
 	player_msg msg;					
 	position pos;
-	technique tec;
 }player;
 
 typedef struct _map_msg
@@ -72,7 +81,7 @@ typedef struct _game_logic
 	queue* que_2_net_logic;		  	 //通信的消息队列
 	queue* service_que;				 //本服务的消息队列
 	player* map_player[MAX_MAP];  	 //map_player 是一个指向 sizeof(player) * MAX_PLAYER_EACH_MAP 的头指针
-									 //相当于一个 player map_player[MAX_MAP][MAX_PLAYER_EACH_MAP]二维数组
+									 //相当于一个 player map_player[MAX_MAP][MAX_PLAYER_EACH_MAP] 二维数组
 	game_router* route;				 //路由表
 
 	char* service_route_addr;
@@ -391,7 +400,7 @@ static void user_msg_load(player* user,void* data_buf,int uid)
 	user->pos.point_x = START_POSITION_X;
 	user->pos.point_y = START_POSITION_Y;	
 
-	user->tec.speed = START_SPEED;
+	user->tec.step = START_STEP;
 
 	free(req->name);
 	free(req);
@@ -499,7 +508,7 @@ static void map_uid_list_append(game_logic* gl,int mapid,int uid)
 }
 
 
-static int broadcast_player_msg(game_logic* gl,player* user,player_id* user_id,char broadcast_msg_type)
+static int broadcast_player_msg(game_logic* gl,player_id* user_id,char broadcast_msg_type)
 {
 	broadcast* broadcast_msg = (broadcast*)malloc(sizeof(broadcast));
 	if(broadcast_msg == NULL)
@@ -507,10 +516,11 @@ static int broadcast_player_msg(game_logic* gl,player* user,player_id* user_id,c
 		fprintf(ERR_FILE,"send_login_rsp: broadcast_msg malloc error\n");
 		return -1;
 	}
+	player* user = &(gl->map_player[user_id->mapid][user_id->map_playerid]); //得到user
 	int player_num = gl->route->map_player_num[user_id->mapid];
-	broadcast_msg->list.broadcast_player_num = player_num;				//得到这个地图的人数
+	broadcast_msg->list.broadcast_player_num = player_num;					 //得到这个地图的人数
 	int *uid_list = gl->route->map_uid_list[user_id->mapid];								
-	uid_list_cpy(broadcast_msg->list.uid_list,uid_list,player_num);     //复制广播列表
+	uid_list_cpy(broadcast_msg->list.uid_list,uid_list,player_num);     	 //复制广播列表
 
 	void *rsp = NULL;
 	switch(broadcast_msg_type) //广播的数据的 pack 类型
@@ -520,6 +530,7 @@ static int broadcast_player_msg(game_logic* gl,player* user,player_id* user_id,c
 			break;
 
 		case ENEMY_MSG:
+			printf("**********broadcast enemy_msg******************\n");
 			rsp = enemy_msg_creat(user->msg.uid,user->pos.point_x,user->pos.point_y);
 			break;
 	}
@@ -538,7 +549,6 @@ static int broadcast_player_msg(game_logic* gl,player* user,player_id* user_id,c
 		return -1;			
 	}
 	queue_push(gl->que_2_net_logic,qnode);    
-
 	send_msg2_service(gl->sock_2_net_logic);	
 
 	return 0;
@@ -572,18 +582,101 @@ static int dispose_start_request(game_logic* gl,player_id* user_id,void* data,in
 	if(req->start == true)
 	{
 		printf("^^^^^^^game: client require start is true^^^^^^^\n");
-		player* user = &(gl->map_player[user_id->mapid][user_id->map_playerid]);		
+//		player* user = &(gl->map_player[user_id->mapid][user_id->map_playerid]); //根据 user_id 得到 user 即可		
 
-		broadcast_player_msg(gl,user,user_id,NEW_ENEMY);					 //广播给其他玩家有新玩家登陆
+		broadcast_player_msg(gl,user_id,NEW_ENEMY);					 	 //广播给其他玩家有新玩家登陆
 
-		gl->route->map_player_num[user_id->mapid] ++;						 //地图内玩家自增
+		gl->route->map_player_num[user_id->mapid] ++;						     //地图内玩家自增
 
-		map_uid_list_append(gl,user_id->mapid,uid);							 //追加广播列表
-		login_msg_send(gl,uid,0,GAME_START_RSP);							 //发送开始游戏	
+		map_uid_list_append(gl,user_id->mapid,uid);							     //追加广播列表
+		login_msg_send(gl,uid,0,GAME_START_RSP);							     //发送开始游戏	
 	}
 
 	free(data);
 	return 0;
+}
+
+static move_rsp_send(game_logic* gl,player* user,bool success)
+{
+//	player* user = &(gl->map_player[user_id->mapid][user_id->map_playerid]);
+	int pos_x = user->pos.point_x;
+	int pos_y = user->pos.point_y; 
+	int hero_uid = user->msg.uid;
+	move_rsp* rsp = move_rsp_creat(success,hero_uid,pos_x,pos_y);
+	if(rsp == NULL)
+	{
+		fprintf(ERR_FILE,"move_rsp_send: rsp malloc error\n");
+		return -1;	
+	}
+
+	broadcast* broadcast_msg = (broadcast*)malloc(sizeof(broadcast));
+	if(broadcast_msg == NULL)
+	{
+		fprintf(ERR_FILE,"send_login_rsp: broadcast_msg malloc error\n");
+		return -1;
+	}
+
+	broadcast_msg->list.broadcast_player_num = 1; 			//只有一个玩家
+	broadcast_msg->list.uid_list[0] = hero_uid;		  		//玩家的uid
+
+	broadcast_msg->data.proto_type = MOVE_RSP;
+	broadcast_msg->data.buffer = rsp;
+
+	q_node* qnode = qnode_create(&broadcast_msg->list,&broadcast_msg->data,NULL);
+	if(qnode == NULL)
+	{
+		fprintf(ERR_FILE,"move_rsp_send: qnode malloc error\n");
+		return -1;			
+	}
+
+	queue_push(gl->que_2_net_logic,qnode);    
+	send_msg2_service(gl->sock_2_net_logic);	
+}
+
+static int dispose_move_request(game_logic* gl,player_id* user_id,void* data)
+{
+	move_req* req = (move_req*)data;
+	player* user = &(gl->map_player[user_id->mapid][user_id->map_playerid]);
+	int move = req->move;
+	bool success = false;
+	switch(move)
+	{
+		case MOVE_LEFT:
+			if((user.pos.point_x - user.tec.step) > 0)
+			{
+				user.pos.point_x -= user.tec.step;
+				success = true;
+			}
+			break;
+		
+		case MOVE_RIGHT:
+			if((user.pos.point_x + user.tec.step) > MAP_NAX_X)
+			{
+				user.pos.point_x += user.tec.step;
+				success = true;
+			}
+			break;
+
+		case MOVE_UP:
+			if((user.pos.point_y + user.tec.step) > MAP_NAX_Y)
+			{
+				user.pos.point_y += user.tec.step;
+				success = true;
+			}
+			break;
+		
+		case MOVE_DOWN:
+			if((user.pos.point_y - user.tec.step) > 0)
+			{
+				user.pos.point_y -= user.tec.step;
+				success = true;
+			}
+			break;
+
+		move_rsp_send(gl,user,success);				//给请求方回应
+		broadcast_player_msg(gl,user_id,ENEMY_MSG);
+	}
+
 }
 
 static int dispose_game_logic(game_logic* gl,q_node* qnode)
@@ -606,6 +699,11 @@ static int dispose_game_logic(game_logic* gl,q_node* qnode)
 				//广播新玩家进入地图 -> 地图人数+1 -> 广播列表追加 -> 回应开始游戏
 				printf("#######game:recieve que game start request#######\n");
 				dispose_start_request(gl,user_id,data,uid); //this function have error
+				break;
+
+			case MOVE_REQ://移动请求
+				//根据移动请求计算出下一刻应到达的位置->回应给请求的玩家->广播出去
+				printf("#######game:recieve que game move request#######\n");
 				break;
 		}
 	}

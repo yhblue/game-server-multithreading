@@ -238,9 +238,12 @@ static deserialize* unpack_user_data(unsigned char * data_pack,int len)
 			printf("nelogic service: client game start require\n");
 			break;				 
 
-		// case HEART_REQ:
-		// 	msg = heart_beat__unpack(NULL,data_len,seria_data);
-		// 	break;			
+		case MOVE_REQ:
+			msg = move_req_unpack(NULL,data_len,seria_data);
+			break;
+
+		case LEAVE_REQ:
+			break;			
 	}	
 	data->proto_type = proto_type;
 	data->buffer = msg;
@@ -512,6 +515,22 @@ uint8_t* login_end_data_pack(void* pack_data,int* len)
 	return out_buf;	
 }
 
+uint8_t* move_rsp_data_pack(void* pack_data,int* len)
+{
+	int pack_size = move_rsp_get_packed_size(pack_data);
+	uint8_t* out_buf = (uint8_t*)malloc(pack_size + PROTO_HEAD_SIZE);
+	if(out_buf == NULL)
+		return NULL;
+
+	move_rsp_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
+	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
+	out_buf[HEAD_PROTO_SIZE_INDEX] = MOVE_RSP;
+
+	*len = pack_size + PROTO_HEAD_SIZE;
+
+	return out_buf;			
+}
+
 //这个函数要修改 qnode 部分
 //这个处理函数功能就是:
 //对数据根据proto_type进行protobuf的序列化->打包成 proto_type + len + seria_data 数据 ->push到socket的发送服务
@@ -549,6 +568,11 @@ static int dispose_game_service_que(net_logic* nl,q_node* qnode)
 		case NEW_ENEMY:
 			printf("\n\n\n\n^^^^^^net route:NEW_ENEMY^^^^^^^^\n\n\n\n\n");
 			rsp = new_enemy_data_pack(buffer,&rsp_size);
+			break;
+
+		case MOVE_RSP:
+			printf("\n\n\n\n^^^^^^net route:MOVE_RSP^^^^^^^^\n\n\n\n\n");
+			rsp = move_rsp_data_pack(buffer,&rsp_size);
 			break;
 	}
 

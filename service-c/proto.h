@@ -12,9 +12,6 @@
 #define HERO_MSG_REQ  		'H'
 #define HERO_MSG_RSP  		'h'
 
-#define CONNECT_REQ   		'C'
-#define CONNECT_RSP   		'c'
-
 #define HEART_REQ     		'R'
 #define HEART_RSP     		'r'
 
@@ -31,6 +28,12 @@
 #define LEAVE_REQ			'V'
 #define LEAVE_RSP			'v'
 
+#define MOVE_REQ  			'M'
+#define	MOVE_RSP  			'm'
+
+#define	ENEMY_LEAVE 		'y'
+
+
 typedef struct _HeroMsg      hero_msg;
 typedef struct _LoginReq     login_req;
 typedef struct _LoginRsp     login_rsp;
@@ -39,6 +42,10 @@ typedef struct _NewEnemy     new_enemy;
 typedef struct _StartReq     start_req;
 typedef struct _StartRsp     start_rsp;
 typedef struct _LoginEnd 	 login_end;
+typedef struct _LeaveReq     leave_req;
+typedef struct _LeaveRsp 	 leave_rsp;
+typedef struct _MoveReq  	 move_req;
+typedef struct _MoveRsp  	 move_rsp;
 
 
 //***********************************************************************************************************//
@@ -175,7 +182,6 @@ void new_enemy_free_unpacked(void* message,ProtobufCAllocator* allocator)
 	new_enemy__free_unpacked(message,allocator);
 }
 
-
 static inline
 void login_end_init(void* message)
 {
@@ -206,7 +212,97 @@ void login_end_free_unpacked(void* message,ProtobufCAllocator* allocator)
 	login_end__free_unpacked(message,allocator);
 }
 
+static inline
+void leave_rsp_init(void* message)
+{
+	leave_req__init(message);
+}
 
+static inline
+size_t leave_req_get_packed_size(const void* message)
+{
+	return leave_req__get_packed_size(message);
+}
+
+static inline
+void* leave_req_pack(const void* message,uint8_t* out)
+{
+	return leave_req__pack(message,out);
+}
+
+static inline
+void* leave_req_unpack(ProtobufCAllocator* allocator,size_t len,const uint8_t* data)
+{
+	return leave_req__unpack(allocator,len,data);
+}
+
+
+static inline
+void leave_req_free_unpacked(void* message,ProtobufCAllocator* allocator)
+{
+	leave_req__free_unpacked(message,allocator);
+}
+
+static inline
+void move_rsp_init(void* message)
+{
+	move_rsp__init(message);
+}
+
+static inline
+size_t move_rsp_get_packed_size(const void* message)
+{
+	return move_rsp__get_packed_size(message);
+}
+
+static inline
+size_t move_rsp_pack(const void* message,uint8_t* out)
+{
+	return move_rsp__pack(message,out);
+}
+
+static inline
+void* move_rsp_unpack(ProtobufCAllocator* allocator,size_t len,const uint8_t* data)
+{
+	return move_rsp__unpack(allocator,len,data);
+}
+
+static inline
+void move_rsp_free_unpacked(void* message,ProtobufCAllocator* allocator)
+{
+	move_rsp__free_unpacked(message,allocator);
+}
+
+//move request
+static inline
+void move_req_init(void* message)
+{
+	move_req__init(message);
+}
+
+static inline
+size_t move_req_get_packed_size(const void* message)
+{
+	return move_req__get_packed_size(message);
+}
+
+static inline
+size_t move_req_pack(const void* message,uint8_t* out)
+{
+	return move_req__pack(message,out);
+}
+
+static inline
+void* move_req_unpack(ProtobufCAllocator* allocator,size_t len,const uint8_t* data)
+{
+	return move_req__unpack(allocator,len,data);
+}
+
+static inline
+void move_req_free_unpacked(void* message,ProtobufCAllocator* allocator)
+{
+	move_req__free_unpacked(message,allocator);
+}
 
 
 /****************************************************************************************/
@@ -281,6 +377,31 @@ static login_end* login_end_creat(bool end)
 	rsp->success = end;
 
 	return rsp;
+}
+
+static leave_rsp* leave_rsp_creat(bool leave)
+{
+	leave_rsp* rsp = (leave_rsp*)malloc(sizeof(leave_rsp));
+	if(rsp == NULL)
+	{
+		return NULL;
+	}
+	leave_rsp_init(rsp);
+	rsp->leave = leave;	
+}
+
+static move_rsp* move_rsp_creat(bool success,int uid,int pos_x,int pos_y)
+{
+	move_rsp* rsp = (move_rsp*)malloc(sizeof(move_rsp));
+	if(rsp == NULL)
+	{
+		return NULL;
+	}	
+
+	rsp->success = success;
+	rsp->uid = uid;
+	rsp->pos_x = pos_x;
+	rsp->pos_y = pos_y;
 }
 
 #endif
