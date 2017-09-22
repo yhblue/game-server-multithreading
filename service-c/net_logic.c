@@ -49,8 +49,9 @@
 
 #define PROTO_HEAD_SIZE				2
 #define PROTO_TYPE_SIZE 			1
-#define HEAD_PROTO_TYPE_INDEX		0
-#define HEAD_PROTO_SIZE_INDEX		1
+#define HEAD_PROTO_SIZE_INDEX		0
+#define HEAD_PROTO_TYPE_INDEX		1
+
 
 
 
@@ -443,8 +444,8 @@ uint8_t* log_rsp_data_pack(void* pack_data,int* len)
 		return NULL;
 
 	login_rsp_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
-	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
-	out_buf[HEAD_PROTO_SIZE_INDEX] = LOG_RSP;
+	out_buf[HEAD_PROTO_SIZE_INDEX] = pack_size + 1;
+	out_buf[HEAD_PROTO_TYPE_INDEX] = LOG_RSP;
 
 	*len = pack_size + PROTO_HEAD_SIZE;
 
@@ -459,8 +460,8 @@ uint8_t* enemy_msg_data_pack(void* pack_data,int* len)
 		return NULL;
 
 	enemy_msg_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
-	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
-	out_buf[HEAD_PROTO_SIZE_INDEX] = ENEMY_MSG;	
+	out_buf[HEAD_PROTO_SIZE_INDEX] = pack_size + 1;
+	out_buf[HEAD_PROTO_TYPE_INDEX] = ENEMY_MSG;	
 
 	*len = pack_size + PROTO_HEAD_SIZE;
 
@@ -475,8 +476,8 @@ uint8_t* start_rsp_data_pack(void* pack_data,int* len)
 		return NULL;
 
 	start_rsp_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
-	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
-	out_buf[HEAD_PROTO_SIZE_INDEX] = GAME_START_RSP;	
+	out_buf[HEAD_PROTO_SIZE_INDEX] = pack_size + 1;
+	out_buf[HEAD_PROTO_TYPE_INDEX] = GAME_START_RSP;	
 
 	*len = pack_size + PROTO_HEAD_SIZE;
 
@@ -491,8 +492,8 @@ uint8_t* new_enemy_data_pack(void* pack_data,int* len)
 		return NULL;
 
 	new_enemy_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
-	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
-	out_buf[HEAD_PROTO_SIZE_INDEX] = NEW_ENEMY;	
+	out_buf[HEAD_PROTO_SIZE_INDEX] = pack_size + 1;
+	out_buf[HEAD_PROTO_TYPE_INDEX] = NEW_ENEMY;	
 
 	*len = pack_size + PROTO_HEAD_SIZE;
 
@@ -507,8 +508,8 @@ uint8_t* login_end_data_pack(void* pack_data,int* len)
 		return NULL;
 
 	login_end_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
-	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
-	out_buf[HEAD_PROTO_SIZE_INDEX] = LOGIN_END;	
+	out_buf[HEAD_PROTO_SIZE_INDEX] = pack_size + 1;
+	out_buf[HEAD_PROTO_TYPE_INDEX] = LOGIN_END;	
 
 	*len = pack_size + PROTO_HEAD_SIZE;
 
@@ -523,8 +524,8 @@ uint8_t* move_rsp_data_pack(void* pack_data,int* len)
 		return NULL;
 
 	move_rsp_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
-	out_buf[HEAD_PROTO_TYPE_INDEX] = pack_size + 1;
-	out_buf[HEAD_PROTO_SIZE_INDEX] = MOVE_RSP;
+	out_buf[HEAD_PROTO_SIZE_INDEX] = pack_size + 1;
+	out_buf[HEAD_PROTO_TYPE_INDEX] = MOVE_RSP;
 
 	*len = pack_size + PROTO_HEAD_SIZE;
 
@@ -596,6 +597,7 @@ static int dispose_queue_event(net_logic* nl)
 	q_node* qnode = queue_pop(nl->current_que);
 	if(qnode == NULL) //队列无数据
 	{
+		printf("netlogic:service type = %d is null\n",service_type);
 		return -1;
 	}
 	else
@@ -607,8 +609,9 @@ static int dispose_queue_event(net_logic* nl)
 				break;
 
 			case SERVICE_TYPE_GAME_LOGIC:
+				printf("\n~~~~~~netlogic: dispose game queue start~~~~~~~~~~\n\n");
 				dispose_game_service_que(nl,qnode);
-				printf("\n\n\n~~~~~~netlogic: dispose game queue~~~~~~~~~~\n\n");
+				printf("\n~~~~~~netlogic: dispose game queue end~~~~~~~~~~\n\n");
 				break;
 
 			case SERVICE_TYPE_LOG:
@@ -708,6 +711,14 @@ static int net_logic_event(net_logic *nt)
 					int type = dispose_service_read_msg(sv);
 					printf("SERVICE_TYPE = SERVICE_TYPE_GAME_LOGIC,netlogic epoll work\n");
 					return type;
+				}
+				if(eve->write)
+				{
+					printf("\n\n\n\n\n\n\netlogic:epoll write event\n\n\n\n\n\n");
+				}
+				if(eve->error)
+				{
+					printf("\n\n\n\n\n\n\nnetlogic:epoll write event\n\n\n\n\n\n");
 				}
 				break;
 		}
