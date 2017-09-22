@@ -457,6 +457,8 @@ static int dispose_service_read_msg(int sev_fd)
 				fprintf(ERR_FILE,"dispose_netio_process_read_msg: socket read,EAGAIN\n");
 				break;
 			default:
+				printf("\n~~~~~~~~~~~~~~service socket close~~~~~~~~~~~~~~~~~~~\n");
+				perror("service error");
 				close(sev_fd);
 				return -1;			
 		}
@@ -464,6 +466,7 @@ static int dispose_service_read_msg(int sev_fd)
 	if(n == 0) 
 	{
 		close(sev_fd);
+		printf("\n~~~~~~~~~~~~~~service socket close~~~~~~~~~~~~~~~~~~~\n");
 		return -1;
 	}	
 	return 0;
@@ -599,10 +602,10 @@ int send_msg2_service(int socket)
 			case EINTR:
 				//continue;
 			case EAGAIN:
-				return 0; //wait next time
+				return -1; //wait next time
 			default:
 				close(socket);
-				fprintf(stderr, "send_msg2_service: write socket = %d error.",socket);
+				fprintf(stderr, "~~~~~send_msg2_service: write socket = %d error.~~~~~",socket);
 				return -1;
 		}
 	}
@@ -691,7 +694,7 @@ static int dispose_queue_event(struct socket_server *ss)
 	else
 	{
 		//把消息队列的数据的内容部分广播给指定玩家
-		printf("/************broadcast data to client*****************/\n");
+		printf("/************netio:broadcast data to client****************/\n");
 		broadcast_user_msg(ss,qnode);
 		if(qnode != NULL)
 		{
@@ -756,7 +759,7 @@ static int socket_server_event(struct socket_server *ss, struct socket_message *
 				return -1;
 			}	
 			ss->event_index = 0;
-			printf("sepoll_wait return event = %d\n",ss->event_n);
+			printf("netio:sepoll_wait return event = %d\n",ss->event_n);
 		}
 		struct event* eve = &ss->event_pool[ss->event_index++];
 		struct socket *s = eve->s_p; 
@@ -768,6 +771,7 @@ static int socket_server_event(struct socket_server *ss, struct socket_message *
 		switch(s->type) 
 		{
 			case SOCKET_TYPE_NETLOGIC:
+				printf("~~~~~~netio:netlogic socket have event~~~~~~~~~");
 				dispose_service_read_msg(ss->socket_netlog);
 				ss->que_check = true;
 				break;					

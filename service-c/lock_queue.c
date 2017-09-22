@@ -90,19 +90,23 @@ static bool queue_is_empty(queue* q)
   
 void* queue_pop(queue* q)
 {
-	if(queue_is_empty(q) == true)
-		return NULL;
-
+    void* ret = NULL;
     SPIN_LOCK(&(q->lock));
-	q_node* qtmp = q->head;
-	if(q->head == q->tail)
-	{
-		q->tail = NULL;
-	}
-	q->head = q->head->next; 
+
+    q_node* qtmp = q->head;
+    if(qtmp) //not empty
+    {
+        if(q->head == q->tail)
+        {
+            q->tail = NULL;
+        }
+        q->head = q->head->next;  
+        ret = qtmp;       
+    }
+
     SPIN_UNLOCK(&(q->lock)); 
 	
-	return qtmp; //调用的一方需要释放掉qtmp和qtmp->buffer的内存
+	return ret; 
 }
 
 

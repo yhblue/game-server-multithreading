@@ -136,17 +136,18 @@ queue* message_que_creat()
 //为一个新的 socket 分配到一个游戏逻辑服务的 id
 uint8_t route_distribute_gamelogic(net_logic* nl)
 {
-	int gamelogic01_player = nl->route.online_player[GAME_LOGIC_SERVER_FIRST];
-	int gamelogic02_player = nl->route.online_player[GAME_LOGIC_SERVER_SECOND];
-	int gamelogic03_player = nl->route.online_player[GAME_LOGIC_SERVER_THIRD];
-	int gamelogic04_player = nl->route.online_player[GAME_LOGIC_SERVER_FOURTH];
+	// int gamelogic01_player = nl->route.online_player[GAME_LOGIC_SERVER_FIRST];
+	// int gamelogic02_player = nl->route.online_player[GAME_LOGIC_SERVER_SECOND];
+	// int gamelogic03_player = nl->route.online_player[GAME_LOGIC_SERVER_THIRD];
+	// int gamelogic04_player = nl->route.online_player[GAME_LOGIC_SERVER_FOURTH];
 
-	uint8_t id1 = (gamelogic01_player < gamelogic02_player)? GAME_LOGIC_SERVER_FIRST:GAME_LOGIC_SERVER_SECOND;
-	uint8_t id2 = (gamelogic03_player < gamelogic04_player)? GAME_LOGIC_SERVER_THIRD:GAME_LOGIC_SERVER_FOURTH;
+	// uint8_t id1 = (gamelogic01_player < gamelogic02_player)? GAME_LOGIC_SERVER_FIRST:GAME_LOGIC_SERVER_SECOND;
+	// uint8_t id2 = (gamelogic03_player < gamelogic04_player)? GAME_LOGIC_SERVER_THIRD:GAME_LOGIC_SERVER_FOURTH;
 
-	uint8_t ret = (nl->route.online_player[id1] < nl->route.online_player[id2])? id1 : id2;
+	// uint8_t ret = (nl->route.online_player[id1] < nl->route.online_player[id2])? id1 : id2;
 
-	return ret;
+	// return ret;
+	return 0;
 }
 
 //SOCKET_SUCCESS
@@ -316,6 +317,7 @@ static net_logic* net_logic_creat(net_logic_start* start)
 	nt->serv_addr = start->service_addr;
 	nt->serv_port = start->service_port;
 	nt->network_que = &nt->que_pool[QUE_ID_NETLOGIC_2_NETIO];
+
 	return nt;
 }
 
@@ -593,14 +595,23 @@ static int dispose_game_service_que(net_logic* nl,q_node* qnode)
 
 static int dispose_queue_event(net_logic* nl)
 {
-	int service_type = nl->current_serice->type;
+	int service_type = 0;
+	if(nl->current_serice == NULL)
+	{
+		service_type = SERVICE_TYPE_GAME_LOGIC;
+	}
+	else
+	{
+		service_type = nl->current_serice->type;
+	}
+	printf("service_type = %d\n",service_type);
 	q_node* qnode = queue_pop(nl->current_que);
 	if(qnode == NULL) //队列无数据
 	{
-		printf("netlogic:service type = %d is null\n",service_type);
+		printf("queue null\n");
 		return -1;
 	}
-	else
+	else 
 	{
 		switch(service_type)
 		{
@@ -609,9 +620,9 @@ static int dispose_queue_event(net_logic* nl)
 				break;
 
 			case SERVICE_TYPE_GAME_LOGIC:
-				printf("\n~~~~~~netlogic: dispose game queue start~~~~~~~~~~\n\n");
+				printf("\n~~~~~~netlogic: dispose game queue start~~~~~~~~~~\n");
 				dispose_game_service_que(nl,qnode);
-				printf("\n~~~~~~netlogic: dispose game queue end~~~~~~~~~~\n\n");
+				printf("\n~~~~~~netlogic: dispose game queue end~~~~~~~~~~\n");
 				break;
 
 			case SERVICE_TYPE_LOG:
@@ -629,7 +640,8 @@ static int dispose_queue_event(net_logic* nl)
 
 static int dispose_service_read_msg(service* sv)
 {
-	char buf[64] = {0};
+	static long unsigned int times = 0;
+	char buf[64] = {-1};
 	int n = read(sv->sock_fd,buf,sizeof(buf));  //写到了这里接着写下去
 	buf[n] = '\0';
 	if(n < 0)
@@ -649,10 +661,13 @@ static int dispose_service_read_msg(service* sv)
 	}
 	if(n == 0) //client close,important
 	{
+		printf("/////////////////clse game socket/////////////////\n");
 		close(sv->sock_fd);
 		return EVENT_THREAD_DISCONNECT;
-	}	
-	printf("netlogic read:%s\n",buf);
+	}
+	if((times++) < 500)	
+		printf("-----netlogic read:%d\n",buf[0]);
+
 	return 0;
 }
 
@@ -660,6 +675,7 @@ static int net_logic_event(net_logic *nt)
 {
 	for( ; ; )
 	{
+		printf("event running\n");
 		if(nt->check_que == true) 
 		{
 			int ret = dispose_queue_event(nt);
@@ -673,17 +689,27 @@ static int net_logic_event(net_logic *nt)
 				continue;
 			}
 		}
-		if(nt->event_index == nt->event_n)
-		{
-			nt->event_n = sepoll_wait(nt->epoll_fd,nt->event_pool,NET_LOGIC_MAX_EVENT);
-			if(nt->event_n <= 0) //error
+//		if(nt->event_index == nt->event_n)
+//		{
+			printf("nepoll_wait\n");
+			nt->event_n = nepoll_wait(nt->epoll_fd,nt->event_pool,1);
+			// if(nt->event_n <= 0) //error
+			// {
+			// 	fprintf(ERR_FILE,"net_logic_event:sepoll_wait return error event_n\n");
+			// 	nt->event_n = 0;
+			// 	return -1;
+			// }
+			printf("wake up\n");	
+			if(nt->event_n == 0)
 			{
-				fprintf(ERR_FILE,"net_logic_event:sepoll_wait return error event_n\n");
-				nt->event_n = 0;
-				return -1;
-			}	
-			nt->event_index = 0;
-		}
+				nt->check_que = true;
+				nt->current_que = &nt->que_pool[QUE_ID_GAMELOGIC_2_NETLOGIC];
+				nt->current_serice = NULL;
+				//printf("nothing\n");
+				continue;			
+			}
+
+//		}
 		nt->event_index = 0;			
 		struct event* eve = &nt->event_pool[nt->event_index++];  //read or write
 		service* sv = eve->s_p; 			                	 //which process socket
@@ -696,6 +722,7 @@ static int net_logic_event(net_logic *nt)
 				nt->check_que = true;
 				if(eve->read)
 				{
+					printf("netio read\n");
 					int type = dispose_service_read_msg(sv);
 					printf("SERVICE_TYPE = SERVICE_TYPE_NET_IO,netlogic epoll work\n");
 					return type;
@@ -708,10 +735,11 @@ static int net_logic_event(net_logic *nt)
 				nt->check_que = true;
 				if(eve->read)
 				{
+					printf("game read\n");
 					int type = dispose_service_read_msg(sv);
-					printf("SERVICE_TYPE = SERVICE_TYPE_GAME_LOGIC,netlogic epoll work\n");
+					//printf("netlogic:game socket have event \n");
 					return type;
-				}
+				} 
 				if(eve->write)
 				{
 					printf("\n\n\n\n\n\n\netlogic:epoll write event\n\n\n\n\n\n");
@@ -949,6 +977,7 @@ void* net_logic_service_loop(void* arg)
        return NULL;			
 	}
 	int type = 0;
+	static int times = 0;
 	printf("~~~~~~~~~~net_logic_service_loop running!~~~~~~~~~~~~~\n");
 	for( ; ; )
 	{
@@ -956,7 +985,8 @@ void* net_logic_service_loop(void* arg)
 		switch(type)
 		{
 			case EVENT_TYPE_QUE_NULL:
-				printf("netlogic:queue is null\n");
+				//if((times++) < 200)
+					//printf("netlogic:queue is null\n");
 				break;
 
 			case EVENT_THREAD_CONNECT_ERR:
@@ -965,6 +995,7 @@ void* net_logic_service_loop(void* arg)
 			case EVENT_THREAD_DISCONNECT:
 				break;
 		}
+		printf("net running\n");
 	}
 	return NULL;
 }

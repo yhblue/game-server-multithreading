@@ -31,7 +31,7 @@
 
 #define START_POSITION_X				 0
 #define START_POSITION_Y				 0
-#define START_STEP						 1
+#define START_STEP						 2
 #define MAX_USER_NAME_LEN				15
 
 #define MOVE_STOP		0
@@ -469,7 +469,7 @@ static int login_msg_send(game_logic* gl,int hero_uid,int enemy_uid,char msg_typ
 	}
 	queue_push(gl->que_2_net_logic,qnode);    
 
-	send_msg2_service(gl->sock_2_net_logic);	
+	//send_msg2_service(gl->sock_2_net_logic);	
 
 	return 0;
 }
@@ -530,7 +530,7 @@ static int broadcast_player_msg(game_logic* gl,player_id* user_id,char broadcast
 			break;
 
 		case ENEMY_MSG:
-			printf("**********broadcast enemy_msg******************\n");
+			printf("**********game:broadcast enemy_msg******************\n");
 			rsp = enemy_msg_creat(user->msg.uid,user->pos.point_x,user->pos.point_y);
 			break;
 	}
@@ -549,7 +549,7 @@ static int broadcast_player_msg(game_logic* gl,player_id* user_id,char broadcast
 		return -1;			
 	}
 	queue_push(gl->que_2_net_logic,qnode);    
-	send_msg2_service(gl->sock_2_net_logic);	
+	//send_msg2_service(gl->sock_2_net_logic);	
 
 	return 0;
 }
@@ -631,7 +631,10 @@ static int move_rsp_send(game_logic* gl,player* user,bool success)
 	}
 
 	queue_push(gl->que_2_net_logic,qnode);    
-	send_msg2_service(gl->sock_2_net_logic);	
+	// if(send_msg2_service(gl->sock_2_net_logic) == -1)
+	// {
+	// 	fprintf(ERR_FILE,"\n\nmove_rsp_send:wake up netlogic error\n\n\n");
+	// }	
 	return 0;
 }
 
