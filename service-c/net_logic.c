@@ -51,7 +51,7 @@
 #define PROTO_TYPE_SIZE 			1
 #define HEAD_PROTO_SIZE_INDEX		0
 #define HEAD_PROTO_TYPE_INDEX		1
-
+#define CONTENT_MSG_TYPE_INDEX		0
 
 
 
@@ -218,7 +218,7 @@ int route_get_msg_socket(net_logic* nl,int socket_id)
 //这个函数看看能不能改一下，这个函数必须依赖网络IO线程按照指定格式读，这样效率低
 static deserialize* unpack_user_data(unsigned char * data_pack,int len)
 {
-	unsigned char proto_type = data_pack[HEAD_PROTO_TYPE_INDEX]; 	 //记录用的.proto文件中哪个message来序列化  
+	unsigned char proto_type = data_pack[CONTENT_MSG_TYPE_INDEX]; 	 //记录用的.proto文件中哪个message来序列化  
 	unsigned char* seria_data = data_pack + PROTO_TYPE_SIZE;      //data_pack 是网络IO线程中分配的内存，反序列化完之后free掉
 	deserialize* data = (deserialize*)malloc(sizeof(deserialize));
 	int data_len = len - PROTO_TYPE_SIZE; //减去第一个字节包头
