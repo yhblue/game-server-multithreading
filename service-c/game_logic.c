@@ -602,6 +602,7 @@ static int move_rsp_send(game_logic* gl,player* user,bool success)
 	int pos_x = user->pos.point_x;
 	int pos_y = user->pos.point_y; 
 	int hero_uid = user->msg.uid;
+	printf("success=%d,uid=%d,x=%d,y=%d\n",success,hero_uid,pos_x,pos_y);
 	move_rsp* rsp = move_rsp_creat(success,hero_uid,pos_x,pos_y);
 	if(rsp == NULL)
 	{
@@ -651,7 +652,7 @@ static int dispose_move_request(game_logic* gl,player_id* user_id,void* data)
 			break;
 		
 		case MOVE_RIGHT:
-			if((user->pos.point_x + user->tec.step) > MAP_NAX_X)
+			if((user->pos.point_x + user->tec.step) < MAP_NAX_X)
 			{
 				user->pos.point_x += user->tec.step;
 				success = true;
@@ -659,24 +660,24 @@ static int dispose_move_request(game_logic* gl,player_id* user_id,void* data)
 			break;
 
 		case MOVE_UP:
-			if((user->pos.point_y + user->tec.step) > MAP_NAX_Y)
-			{
-				user->pos.point_y += user->tec.step;
-				success = true;
-			}
-			break;
-		
-		case MOVE_DOWN:
 			if((user->pos.point_y - user->tec.step) > 0)
 			{
 				user->pos.point_y -= user->tec.step;
 				success = true;
 			}
 			break;
+		
+		case MOVE_DOWN:
+			if((user->pos.point_y + user->tec.step) < MAP_NAX_Y)
+			{
+				user->pos.point_y += user->tec.step;
+				success = true;
+			}
+			break;
 	}
 	move_rsp_send(gl,user,success);				//给请求方回应
 	broadcast_player_msg(gl,user_id,ENEMY_MSG);	
-	
+
 	return 0;
 }
 
@@ -717,7 +718,7 @@ static int dispose_game_logic(game_logic* gl,q_node* qnode)
 //DATA		    -找到该玩家信息，对信息进行更新
 static int dispose_queue_event(game_logic* gl)
 {
-	static times = 0;
+	static int times = 0;
 	printf("game_logic port = %d dispose queue message\n",gl->service_port);
 	q_node* qnode = queue_pop(gl->service_que);
 	if(qnode == NULL) //队列无数据
