@@ -469,7 +469,7 @@ static int login_msg_send(game_logic* gl,int hero_uid,int enemy_uid,char msg_typ
 	}
 	queue_push(gl->que_2_net_logic,qnode);    
 
-	//send_msg2_service(gl->sock_2_net_logic);	
+	send_msg2_service(gl->sock_2_net_logic);	
 
 	return 0;
 }
@@ -549,7 +549,7 @@ static int broadcast_player_msg(game_logic* gl,player_id* user_id,char broadcast
 		return -1;			
 	}
 	queue_push(gl->que_2_net_logic,qnode);    
-	//send_msg2_service(gl->sock_2_net_logic);	
+	send_msg2_service(gl->sock_2_net_logic);	
 
 	return 0;
 }
@@ -559,7 +559,7 @@ static int broadcast_player_msg(game_logic* gl,player_id* user_id,char broadcast
 //信息加载->发送登陆确认回复->得到此时的地图内信息->发送给这个玩家->广播给其他玩家有新玩家登陆->发送开始游戏信息
 static void dispose_login_request(game_logic* gl,player_id* user_id,void* data,int uid)
 {
-	printf("****game:user_id->mapid = %d user_id->map_playerid =%d *****\n",user_id->mapid,user_id->map_playerid);
+	printf("****game:user_id->mapid=%d user_id->map_playerid=%d *****\n",user_id->mapid,user_id->map_playerid);
 	player* user = &(gl->map_player[user_id->mapid][user_id->map_playerid]);
 	user_msg_load(user,data,uid); 
 
@@ -631,10 +631,10 @@ static int move_rsp_send(game_logic* gl,player* user,bool success)
 	}
 
 	queue_push(gl->que_2_net_logic,qnode);    
-	// if(send_msg2_service(gl->sock_2_net_logic) == -1)
-	// {
-	// 	fprintf(ERR_FILE,"\n\nmove_rsp_send:wake up netlogic error\n\n\n");
-	// }	
+	if(send_msg2_service(gl->sock_2_net_logic) == -1)
+	{
+		fprintf(ERR_FILE,"\n\nmove_rsp_send:wake up netlogic error\n\n\n");
+	}	
 	return 0;
 }
 

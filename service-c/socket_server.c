@@ -607,7 +607,7 @@ int send_msg2_service(int socket)
 				close(socket);
 				fprintf(stderr, "~~~~~send_msg2_service: write socket = %d error.~~~~~",socket);
 				return -1;
-		}
+		}	
 	}
 	return 0;	
 }

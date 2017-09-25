@@ -598,15 +598,8 @@ static int dispose_game_service_que(net_logic* nl,q_node* qnode)
 static int dispose_queue_event(net_logic* nl)
 {
 	int service_type = 0;
-	if(nl->current_serice == NULL)
-	{
-		service_type = SERVICE_TYPE_GAME_LOGIC;
-	}
-	else
-	{
-		service_type = nl->current_serice->type;
-	}
-	printf("service_type = %d\n",service_type);
+	service_type = nl->current_serice->type;
+
 	q_node* qnode = queue_pop(nl->current_que);
 	if(qnode == NULL) //队列无数据
 	{
@@ -642,8 +635,7 @@ static int dispose_queue_event(net_logic* nl)
 
 static int dispose_service_read_msg(service* sv)
 {
-	static long unsigned int times = 0;
-	char buf[1024] = {0};
+	char buf[512] = {0};
 	int n = read(sv->sock_fd,buf,sizeof(buf));  //写到了这里接着写下去
 	buf[n] = '\0';
 	if(n < 0)
@@ -676,7 +668,6 @@ static int net_logic_event(net_logic *nt)
 {
 	for( ; ; )
 	{
-		printf("event running\n");
 		if(nt->check_que == true) 
 		{
 			int ret = dispose_queue_event(nt);
@@ -692,7 +683,6 @@ static int net_logic_event(net_logic *nt)
 		}
 		if(nt->event_index == nt->event_n)
 		{
-			printf("nepoll_wait\n");
 			nt->event_n = sepoll_wait(nt->epoll_fd,nt->event_pool,MAX_SERVICE);
 			if(nt->event_n <= 0) //error
 			{
@@ -700,8 +690,9 @@ static int net_logic_event(net_logic *nt)
 				nt->event_n = 0;
 				return -1;
 			}
+			nt->event_index = 0;
 		}
-		nt->event_index = 0;			
+					
 		struct event* eve = &nt->event_pool[nt->event_index++];  //read or write
 		service* sv = eve->s_p; 			                	 //which process socket
 
@@ -725,14 +716,13 @@ static int net_logic_event(net_logic *nt)
 				nt->check_que = true;
 				if(eve->read)
 				{
-					printf("game read\n");
 					int type = dispose_service_read_msg(sv);
-					printf("\n\n\n\tlogic:epoll have game read event\n\n\n\n\n");
+					printf("\n\n\n\nlogic:epoll have game read event\n\n\n\n\n");
 					return type;
 				} 
 				if(eve->write)
 				{
-					printf("\n\n\n\netlogic:epollhave game write event\n\n\n\n\n");
+					printf("\n\n\n\nnetlogic:epollhave game write event\n\n\n\n\n");
 				}
 				if(eve->error)
 				{
@@ -966,11 +956,10 @@ void* net_logic_service_loop(void* arg)
        return NULL;			
 	}
 	int type = 0;
-	static int times = 0;
 	printf("~~~~~~~~~~net_logic_service_loop running!~~~~~~~~~~~~~\n");
 	for( ; ; )
 	{
-		type = net_logic_event(nt);
+		type = net_logic_event(nl);
 		switch(type)
 		{
 			case EVENT_TYPE_QUE_NULL:
