@@ -444,6 +444,10 @@ static int login_msg_send(game_logic* gl,int hero_uid,int enemy_uid,char msg_typ
 			rsp = enemy_msg_creat(enemy_uid,user->pos.point_x,user->pos.point_y);
 			break;				
 
+		case NEW_ENEMY:
+			rsp = new_enemy_creat(enemy_uid,user->pos.point_x,user->pos.point_y);
+			break;
+
 		case LOGIN_END:
 			rsp = login_end_creat(true); 
 			break;
@@ -581,8 +585,7 @@ static int dispose_start_request(game_logic* gl,player_id* user_id,void* data,in
 	start_req* req = (start_req*)data;
 	if(req->start == true)
 	{
-		printf("^^^^^^^game: client require start is true^^^^^^^\n");
-//		player* user = &(gl->map_player[user_id->mapid][user_id->map_playerid]); //根据 user_id 得到 user 即可		
+		printf("^^^^^^^game: client require start is true^^^^^^^\n");	
 
 		broadcast_player_msg(gl,user_id,NEW_ENEMY);					 	 //广播给其他玩家有新玩家登陆
 
