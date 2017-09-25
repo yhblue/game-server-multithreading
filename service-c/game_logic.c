@@ -829,9 +829,12 @@ static int connect_netlogic_service(game_logic* gl)
        return -1;
     }
 
+    
+    bzero(&game_service_addr,sizeof(struct sockaddr_in));
     game_service_addr.sin_family = AF_INET;
     game_service_addr.sin_port = htons(gl->service_port);			//8002-8005
-    game_service_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    game_service_addr.sin_addr.s_addr = inet_addr("127.0.0.0");
+    //htonl(INADDR_ANY);
 
 	int optval = 1;
 	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1)
@@ -847,7 +850,7 @@ static int connect_netlogic_service(game_logic* gl)
     }
 
     //set service address
-    memset(&netlog_service_addr,0,sizeof(netlog_service_addr));
+    bzero(&netlog_service_addr,sizeof(struct sockaddr_in));
     netlog_service_addr.sin_family = AF_INET;
     netlog_service_addr.sin_port = htons(gl->service_route_port);
     netlog_service_addr.sin_addr.s_addr = inet_addr(gl->service_route_addr);
@@ -870,6 +873,20 @@ static int connect_netlogic_service(game_logic* gl)
     return 0;	
 }
 
+void socket_test(game_logic* gl)
+{
+	for( ; ; )
+	{
+		if(send_msg2_service(gl->sock_2_net_logic) != 0)
+		{
+			printf("game->netlogic socket errr'\n");
+		}	
+		else
+		{
+			printf("game->netlogic socket errr'\n");
+		}	
+	}
+}
 
 void* game_logic_service_loop(void* arg)
 {	
@@ -882,20 +899,23 @@ void* game_logic_service_loop(void* arg)
 		return NULL;
 	}
 	int type = 0;
+	sleep(20);
 	for( ; ; )
 	{
-		type = game_logic_event(gl);
-		switch(type)
-		{
-			case GAME_LOG_EVENT_QUE_NULL:
-				printf("game_logic:port = %d,queue null\n",gl->service_port);
-				break;
+		socket_test(gl);
+		// type = game_logic_event(gl);
+		// switch(type)
+		// {
+		// 	case GAME_LOG_EVENT_QUE_NULL:
+		// 		printf("game_logic:port = %d,queue null\n",gl->service_port);
+		// 		break;
 
-			case GAME_LOG_EVENT_SOCKET_CLOSE:
-				printf("game_logic:port = %d,socket close\n",gl->serv_port);
-				break;
-		}
+		// 	case GAME_LOG_EVENT_SOCKET_CLOSE:
+		// 		printf("game_logic:port = %d,socket close\n",gl->serv_port);
+		// 		break;
+		// }
 	}
 	return NULL;
 }
+
 

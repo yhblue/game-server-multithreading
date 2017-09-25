@@ -689,27 +689,17 @@ static int net_logic_event(net_logic *nt)
 				continue;
 			}
 		}
-//		if(nt->event_index == nt->event_n)
-//		{
+		if(nt->event_index == nt->event_n)
+		{
 			printf("nepoll_wait\n");
-			nt->event_n = nepoll_wait(nt->epoll_fd,nt->event_pool,1);
-			// if(nt->event_n <= 0) //error
-			// {
-			// 	fprintf(ERR_FILE,"net_logic_event:sepoll_wait return error event_n\n");
-			// 	nt->event_n = 0;
-			// 	return -1;
-			// }
-			printf("wake up\n");	
-			if(nt->event_n == 0)
+			nt->event_n = sepoll_wait(nt->epoll_fd,nt->event_pool,64);
+			if(nt->event_n <= 0) //error
 			{
-				nt->check_que = true;
-				nt->current_que = &nt->que_pool[QUE_ID_GAMELOGIC_2_NETLOGIC];
-				nt->current_serice = NULL;
-				//printf("nothing\n");
-				continue;			
+				fprintf(ERR_FILE,"net_logic_event:sepoll_wait return error event_n\n");
+				nt->event_n = 0;
+				return -1;
 			}
-
-//		}
+		}
 		nt->event_index = 0;			
 		struct event* eve = &nt->event_pool[nt->event_index++];  //read or write
 		service* sv = eve->s_p; 			                	 //which process socket
@@ -737,16 +727,16 @@ static int net_logic_event(net_logic *nt)
 				{
 					printf("game read\n");
 					int type = dispose_service_read_msg(sv);
-					//printf("netlogic:game socket have event \n");
+					printf("\n\n\n\n\n\n\netlogic:epoll have game write event\n\n\n\n\n\n");
 					return type;
 				} 
 				if(eve->write)
 				{
-					printf("\n\n\n\n\n\n\netlogic:epoll write event\n\n\n\n\n\n");
+					printf("\n\n\n\n\n\n\netlogic:epollhave game write event\n\n\n\n\n\n");
 				}
 				if(eve->error)
 				{
-					printf("\n\n\n\n\n\n\nnetlogic:epoll write event\n\n\n\n\n\n");
+					printf("\n\n\n\n\n\n\nnetlogic:epoll have game write event\n\n\n\n\n\n");
 				}
 				break;
 		}
