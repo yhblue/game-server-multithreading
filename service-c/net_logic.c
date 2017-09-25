@@ -96,6 +96,7 @@ typedef struct _net_logic
 	int listen_fd;
 	char* serv_addr;
 	int serv_port;
+	int socket_arr[4];
 	bool socket_send;						//为 true 才会向另一个服务发送一个字节的信息，唤醒对方，然后立刻
 											//修改为false,只有当对方服务进入了休眠状态，在进入之前发送一个字节给
 }net_logic;									//自己，告诉它已经进入休眠，修改为true
@@ -358,6 +359,24 @@ static int send_msg_2_game_logic(net_logic* nl,q_node* qnode,int uid) //socket_i
 		return -1;		
 	}
 	return 0;
+}
+
+static int test_send_msg2_service(net_logic* nl)
+{
+	int i = 0;
+	for(i=0;i<4;i++)
+	{
+		int socket = nl->socket_arr[i];
+		if(send_msg2_service(socket) == -1)
+		{
+			fprintf(ERR_FILE,"send_msg_2_game_logic:send_msg2_service failed\n");
+			return -1;		
+		}
+		else
+		{
+			printf("netlogic send to game\n");
+		}		
+	}		
 }
 
 static q_node* pack_user_data(deserialize* desseria_data,int uid_pack,char type_pack)
@@ -641,13 +660,13 @@ static int dispose_queue_event(net_logic* nl)
 static int dispose_service_read_msg(service* sv)
 {
 	static long unsigned int times = 0;
-	char buf[64] = {-1};
+	char buf[1024] = {0};
 	int n = read(sv->sock_fd,buf,sizeof(buf));  //写到了这里接着写下去
 	buf[n] = '\0';
 	if(n < 0)
 	{
 		switch(errno)
-		{ 
+		{  
 			case EINTR:
 				fprintf(ERR_FILE,"dispose_netio_process_read_msg: socket read,EINTR\n");
 				break;    	// wait for next time
@@ -665,8 +684,7 @@ static int dispose_service_read_msg(service* sv)
 		close(sv->sock_fd);
 		return EVENT_THREAD_DISCONNECT;
 	}
-	if((times++) < 500)	
-		printf("-----netlogic read:%d\n",buf[0]);
+	printf("netlogic:read service size = %d, content:%s\n",n,buf);
 
 	return 0;
 }
@@ -692,7 +710,7 @@ static int net_logic_event(net_logic *nt)
 		if(nt->event_index == nt->event_n)
 		{
 			printf("nepoll_wait\n");
-			nt->event_n = sepoll_wait(nt->epoll_fd,nt->event_pool,64);
+			nt->event_n = sepoll_wait(nt->epoll_fd,nt->event_pool,MAX_SERVICE);
 			if(nt->event_n <= 0) //error
 			{
 				fprintf(ERR_FILE,"net_logic_event:sepoll_wait return error event_n\n");
@@ -727,7 +745,7 @@ static int net_logic_event(net_logic *nt)
 				{
 					printf("game read\n");
 					int type = dispose_service_read_msg(sv);
-					printf("\n\n\n\n\n\n\netlogic:epoll have game write event\n\n\n\n\n\n");
+					printf("\n\n\n\n\n\n\netlogic:epoll have game read event\n\n\n\n\n\n");
 					return type;
 				} 
 				if(eve->write)
@@ -736,7 +754,7 @@ static int net_logic_event(net_logic *nt)
 				}
 				if(eve->error)
 				{
-					printf("\n\n\n\n\n\n\nnetlogic:epoll have game write event\n\n\n\n\n\n");
+					printf("\n\n\n\n\n\n\nnetlogic:epoll have game error event\n\n\n\n\n\n");
 				}
 				break;
 		}
@@ -871,21 +889,25 @@ static int accept_gamelog_service_connect(net_logic* nl)
 			switch(port)
 			{
 				case PORT_GAME_LOGIC_SERVICE_FIRST:
+					nl->socket_arr[0] = socket;
 					nl->route.gamelog_socket[GAME_LOGIC_SERVER_FIRST] = socket;							
 					accept_num++;
 					break;
 
 				case PORT_GAME_LOGIC_SERVICE_SECOND:
+					nl->socket_arr[1] = socket;
 					nl->route.gamelog_socket[GAME_LOGIC_SERVER_SECOND] = socket;
 					accept_num++;				
 					break;
 
 				case PORT_GAME_LOGIC_SERVICE_THIRD:
+					nl->socket_arr[2] = socket;
 					nl->route.gamelog_socket[GAME_LOGIC_SERVER_THIRD] = socket;
 					accept_num++;
 					break;
 
 				case PORT_GAME_LOGIC_SERVICE_FOURTH:
+					nl->socket_arr[3] = socket;
 					nl->route.gamelog_socket[GAME_LOGIC_SERVER_FOURTH] = socket;
 					accept_num++;
 					break;
@@ -906,11 +928,11 @@ static int accept_gamelog_service_connect(net_logic* nl)
 					int sockfd = sv->sock_fd;
 
 					socket_keepalive(sv->sock_fd);
-					if(set_nonblock(sv->sock_fd) == -1)
-					{
-						fprintf(ERR_FILE,"set set_nonblock failed\n");
-						return -1;
-					}
+					// if(set_nonblock(sv->sock_fd) == -1)  //if set no block ,having problem,dont known reason
+					// {
+					// 	fprintf(ERR_FILE,"set set_nonblock failed\n");
+					// 	return -1;
+					// }
 					if(epoll_add(nl->epoll_fd,sockfd,sv) == -1)
 			    	{
 			       		fprintf(ERR_FILE,"accept_gamelog_service_connect:epoll_add failed\n");
@@ -950,18 +972,18 @@ static int service_connect_establish(net_logic_start* start,net_logic* nl)
 void* net_logic_service_loop(void* arg)
 {
 	net_logic_start* start = arg;
-	net_logic *nt = net_logic_creat(start);
-	if(nt == NULL)
+	net_logic *nl = net_logic_creat(start);
+	if(nl == NULL)
 	{
        fprintf(ERR_FILE,"net_logic_service_loop:connect_netio_service disconnect\n");
        return NULL;		
 	}
-	if(netlogic_lisen_creat(nt) == -1)
+	if(netlogic_lisen_creat(nl) == -1)
 	{
        fprintf(ERR_FILE,"net_logic_service_loop:netlogic_lisen_creat\n");
        return NULL;			
 	}
-	if(service_connect_establish(start,nt) == -1)
+	if(service_connect_establish(start,nl) == -1)
 	{
        fprintf(ERR_FILE,"net_logic_service_loop:service_connect_establish failed\n");
        return NULL;			
@@ -971,21 +993,23 @@ void* net_logic_service_loop(void* arg)
 	printf("~~~~~~~~~~net_logic_service_loop running!~~~~~~~~~~~~~\n");
 	for( ; ; )
 	{
-		type = net_logic_event(nt);
-		switch(type)
-		{
-			case EVENT_TYPE_QUE_NULL:
-				//if((times++) < 200)
-					//printf("netlogic:queue is null\n");
-				break;
+		test_send_msg2_service(nl);
+		usleep(100000);
+		// type = net_logic_event(nt);
+		// switch(type)
+		// {
+		// 	case EVENT_TYPE_QUE_NULL:
+		// 		//if((times++) < 200)
+		// 			//printf("netlogic:queue is null\n");
+		// 		break;
 
-			case EVENT_THREAD_CONNECT_ERR:
-				break;
+		// 	case EVENT_THREAD_CONNECT_ERR:
+		// 		break;
 
-			case EVENT_THREAD_DISCONNECT:
-				break;
-		}
-		printf("net running\n");
+		// 	case EVENT_THREAD_DISCONNECT:
+		// 		break;
+		// }
+		// printf("net running\n");
 	}
 	return NULL;
 }

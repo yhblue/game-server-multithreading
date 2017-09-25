@@ -93,6 +93,7 @@ typedef struct _game_logic
 	int serv_port;
 	int game_service_id;			 //记录是第几个游戏逻辑处理服务
 	map_msg map;					 //地图信息
+	int test_socket;
 }game_logic;
 
 player_id* playerid_list_creat(void)
@@ -759,8 +760,9 @@ static int dispose_queue_event(game_logic* gl)
 
 static int dispose_socket_event(game_logic* gl)
 {
-	char buf[128];
+	char buf[512]={0};
 	int n = read(gl->sock_2_net_logic,buf,sizeof(buf));
+	buf[511] = 0;
 	if(n < 0)
 	{
 		switch(errno)
@@ -781,6 +783,7 @@ static int dispose_socket_event(game_logic* gl)
 		fprintf(ERR_FILE,"dispose_socket_event: net_logic service close socket\n");
 		return -1;
 	}	
+	printf("gameid = %d,read data = %s\n",gl->game_service_id,buf);
 	return 0;
 }
 
@@ -833,8 +836,7 @@ static int connect_netlogic_service(game_logic* gl)
     bzero(&game_service_addr,sizeof(struct sockaddr_in));
     game_service_addr.sin_family = AF_INET;
     game_service_addr.sin_port = htons(gl->service_port);			//8002-8005
-    game_service_addr.sin_addr.s_addr = inet_addr("127.0.0.0");
-    //htonl(INADDR_ANY);
+    game_service_addr.sin_addr.s_addr = inet_addr("127.0.0.0");//htonl(INADDR_ANY);
 
 	int optval = 1;
 	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1)
@@ -865,6 +867,7 @@ static int connect_netlogic_service(game_logic* gl)
 	    else
 	    {
 		    //connect sussess
+		    //set_nonblock(sockfd);
 		    gl->sock_2_net_logic = sockfd;
 		    printf("game:game_logic port = %d service connect to net_logic service service success!\n",gl->service_port);
 		    return 0;    	
@@ -873,19 +876,45 @@ static int connect_netlogic_service(game_logic* gl)
     return 0;	
 }
 
+//发送通知唤醒其他服务的函数
+static int test_send_msg2_service(int socket)
+{
+	char* buf = "DATA"; 	//无任何意义的数据，为了唤醒其他服务
+	int n = write(socket,buf,strlen(buf));
+	if(n == -1)
+	{
+		switch(errno)
+		{
+			case EINTR:
+				//continue;
+			case EAGAIN:
+				return -1; //wait next time
+			default:
+				close(socket);
+				fprintf(stderr, "~~~~~send_msg2_service: write socket = %d error.~~~~~",socket);
+				return -1;
+		}
+	}
+	return 0;	
+}
+
 void socket_test(game_logic* gl)
 {
+	int ret = -2;
 	for( ; ; )
 	{
-		if(send_msg2_service(gl->sock_2_net_logic) != 0)
+		if((ret=test_send_msg2_service(gl->sock_2_net_logic)) != 0)
 		{
-			printf("game->netlogic socket errr'\n");
+			printf("game->netlogic socket errr\n");
 		}	
 		else
 		{
-			printf("game->netlogic socket errr'\n");
-		}	
-	}
+			printf("game->netlogic socket success\n");
+			//sleep(2);
+			usleep(100000);
+		}
+		printf("gameid = %d,ret = %d\n",gl->game_service_id,ret);
+	}		
 }
 
 void* game_logic_service_loop(void* arg)
@@ -899,21 +928,20 @@ void* game_logic_service_loop(void* arg)
 		return NULL;
 	}
 	int type = 0;
-	sleep(20);
 	for( ; ; )
 	{
-		socket_test(gl);
-		// type = game_logic_event(gl);
-		// switch(type)
-		// {
-		// 	case GAME_LOG_EVENT_QUE_NULL:
-		// 		printf("game_logic:port = %d,queue null\n",gl->service_port);
-		// 		break;
+//		socket_test(gl);
+		type = game_logic_event(gl);
+		switch(type)
+		{
+			case GAME_LOG_EVENT_QUE_NULL:
+				printf("game_logic:port = %d,queue null\n",gl->service_port);
+				break;
 
-		// 	case GAME_LOG_EVENT_SOCKET_CLOSE:
-		// 		printf("game_logic:port = %d,socket close\n",gl->serv_port);
-		// 		break;
-		// }
+			case GAME_LOG_EVENT_SOCKET_CLOSE:
+				printf("game_logic:port = %d,socket close\n",gl->serv_port);
+				break;
+		}
 	}
 	return NULL;
 }

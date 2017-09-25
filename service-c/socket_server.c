@@ -593,7 +593,7 @@ static int broadcast_user_msg(struct socket_server* ss,q_node* qnode)
 //发送通知唤醒其他服务的函数
 int send_msg2_service(int socket)
 {
-	char* buf = "D"; 	//无任何意义的数据，为了唤醒其他服务
+	char* buf = "DATA"; 	//无任何意义的数据，为了唤醒其他服务
 	int n = write(socket,buf,strlen(buf));
 	if(n == -1)
 	{
@@ -923,7 +923,7 @@ static int wait_netlogic_service_connect(struct socket_server* ss)
 					fprintf(ERR_FILE,"wait_netlogic_thread_connect: apply_socket failed\n");
 					return -1;
 				}
-				s->type = SOCKET_TYPE_NETLOGIC;//标记为与网络逻辑线程通信的socket
+				s->type = SOCKET_TYPE_NETLOGIC;	   //标记为与网络逻辑线程通信的socket
 				ss->socket_netlog = socket;		   //与netlogic通信的socket，记录下来
 
 				printf("netio:accept net_logic service connect!\n");	
