@@ -593,7 +593,7 @@ static int broadcast_user_msg(struct socket_server* ss,q_node* qnode)
 //发送通知唤醒其他服务的函数
 int send_msg2_service(int socket)
 {
-	char* buf = "DATA"; 	//无任何意义的数据，为了唤醒其他服务
+	char* buf = "D"; 	//无任何意义的数据，为了唤醒其他服务
 	int n = write(socket,buf,strlen(buf));
 	if(n == -1)
 	{

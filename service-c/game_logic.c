@@ -93,7 +93,6 @@ typedef struct _game_logic
 	int serv_port;
 	int game_service_id;			 //记录是第几个游戏逻辑处理服务
 	map_msg map;					 //地图信息
-	int test_socket;
 }game_logic;
 
 player_id* playerid_list_creat(void)
@@ -898,6 +897,37 @@ static int test_send_msg2_service(int socket)
 	return 0;	
 }
 
+
+void* game_logic_service_loop(void* arg)
+{	
+	game_logic_start* start = (game_logic_start*)arg;
+	game_logic* gl = game_logic_creat(start);
+
+	if(connect_netlogic_service(gl) == -1)
+	{
+		fprintf(ERR_FILE,"game_logic_service_loop:connect_netlogic_service disconnect\n");
+		return NULL;
+	}
+	int type = 0;
+	for( ; ; )
+	{
+		type = game_logic_event(gl);
+		switch(type)
+		{
+			case GAME_LOG_EVENT_QUE_NULL:
+				printf("game_logic:port = %d,queue null\n",gl->service_port);
+				break;
+
+			case GAME_LOG_EVENT_SOCKET_CLOSE:
+				printf("game_logic:port = %d,socket close\n",gl->serv_port);
+				break;
+		}
+	}
+	return NULL;
+}
+
+
+/*
 void socket_test(game_logic* gl)
 {
 	int ret = -2;
@@ -916,34 +946,5 @@ void socket_test(game_logic* gl)
 		printf("gameid = %d,ret = %d\n",gl->game_service_id,ret);
 	}		
 }
-
-void* game_logic_service_loop(void* arg)
-{	
-	game_logic_start* start = (game_logic_start*)arg;
-	game_logic* gl = game_logic_creat(start);
-
-	if(connect_netlogic_service(gl) == -1)
-	{
-		fprintf(ERR_FILE,"game_logic_service_loop:connect_netlogic_service disconnect\n");
-		return NULL;
-	}
-	int type = 0;
-	for( ; ; )
-	{
-//		socket_test(gl);
-		type = game_logic_event(gl);
-		switch(type)
-		{
-			case GAME_LOG_EVENT_QUE_NULL:
-				printf("game_logic:port = %d,queue null\n",gl->service_port);
-				break;
-
-			case GAME_LOG_EVENT_SOCKET_CLOSE:
-				printf("game_logic:port = %d,socket close\n",gl->serv_port);
-				break;
-		}
-	}
-	return NULL;
-}
-
+*/
 
