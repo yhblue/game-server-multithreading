@@ -685,6 +685,7 @@ static int socket_server_listen(struct socket_server *ss,const char* host,int po
 
 static int dispose_queue_event(struct socket_server *ss)
 {
+	static int times = 0;
 	queue* que = ss->netlogic2io_que;
 	q_node* qnode = queue_pop(que);
 	if(qnode == NULL) //队列无数据
@@ -694,7 +695,7 @@ static int dispose_queue_event(struct socket_server *ss)
 	else
 	{
 		//把消息队列的数据的内容部分广播给指定玩家
-		printf("/************netio:broadcast data to client****************/\n");
+		printf("\n**********netio:broadcast data times=%d************\n",times++);
 		broadcast_user_msg(ss,qnode);
 		if(qnode != NULL)
 		{

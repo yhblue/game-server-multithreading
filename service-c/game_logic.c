@@ -563,7 +563,7 @@ static int broadcast_player_msg(game_logic* gl,player_id* user_id,char broadcast
 //信息加载->发送登陆确认回复->得到此时的地图内信息->发送给这个玩家->广播给其他玩家有新玩家登陆->发送开始游戏信息
 static void dispose_login_request(game_logic* gl,player_id* user_id,void* data,int uid)
 {
-	printf("****game:user_id->mapid=%d user_id->map_playerid=%d *****\n",user_id->mapid,user_id->map_playerid);
+//	printf("****game:user_id->mapid=%d user_id->map_playerid=%d *****\n",user_id->mapid,user_id->map_playerid);
 	player* user = &(gl->map_player[user_id->mapid][user_id->map_playerid]);
 	user_msg_load(user,data,uid); 
 
@@ -601,11 +601,9 @@ static int dispose_start_request(game_logic* gl,player_id* user_id,void* data,in
 
 static int move_rsp_send(game_logic* gl,player* user,bool success)
 {
-//	player* user = &(gl->map_player[user_id->mapid][user_id->map_playerid]);
 	int pos_x = user->pos.point_x;
 	int pos_y = user->pos.point_y; 
 	int hero_uid = user->msg.uid;
-	printf("success=%d,uid=%d,x=%d,y=%d\n",success,hero_uid,pos_x,pos_y);
 	move_rsp* rsp = move_rsp_creat(success,hero_uid,pos_x,pos_y);
 	if(rsp == NULL)
 	{
@@ -681,8 +679,10 @@ static int dispose_move_request(game_logic* gl,player_id* user_id,void* data)
 			}
 			break;
 	}
-	move_rsp_send(gl,user,success);				//给请求方回应
+	int hero_uid = user->msg.uid;
+	//login_msg_send(gl,hero_uid,0,LOGIN_END);        //test python speed.python low speed
 	broadcast_player_msg(gl,user_id,ENEMY_MSG);	
+	//move_rsp_send(gl,user,success);				//给请求方回应
 
 	return 0;
 }
@@ -693,25 +693,24 @@ static int dispose_game_logic(game_logic* gl,q_node* qnode)
 	int uid = head->uid;
 	void* data = qnode->buffer;
 	player_id* user_id = game_route_get_playerid(gl,uid);	//根据uid得到playerid
-	printf("-----game: client:uid = %d,gameid = %d,user_id->mapid = %d,user_id->map_playerid = %d----\n",uid,gl->game_service_id,user_id->mapid,user_id->map_playerid);
 	if(user_id != NULL)
 	{
 		switch(head->proto_type)
 		{
 			case LOG_REQ: 		 //登陆请求
-				printf("#######game:recieve que login request#######\n");
+				//printf("#######game:recieve que login request#######\n");
 				dispose_login_request(gl,user_id,data,uid);
 				break;
 
 			case GAME_START_REQ: //开始游戏请求
 				//广播新玩家进入地图 -> 地图人数+1 -> 广播列表追加 -> 回应开始游戏
-				printf("#######game:recieve que game start request#######\n");
+				//printf("#######game:recieve que game start request#######\n");
 				dispose_start_request(gl,user_id,data,uid); //this function have error
 				break;
 
 			case MOVE_REQ://移动请求
 				//根据移动请求计算出下一刻应到达的位置->回应给请求的玩家->广播出去
-				printf("#######game:recieve que game move request#######\n");
+				//printf("#######game:recieve que game move request#######\n");
 				dispose_move_request(gl,user_id,data);
 				break;
 		}
@@ -878,27 +877,6 @@ static int connect_netlogic_service(game_logic* gl)
     return 0;	
 }
 
-//发送通知唤醒其他服务的函数
-static int test_send_msg2_service(int socket)
-{
-	char* buf = "DATA"; 	//无任何意义的数据，为了唤醒其他服务
-	int n = write(socket,buf,strlen(buf));
-	if(n == -1)
-	{
-		switch(errno)
-		{
-			case EINTR:
-				//continue;
-			case EAGAIN:
-				return -1; //wait next time
-			default:
-				close(socket);
-				fprintf(stderr, "~~~~~send_msg2_service: write socket = %d error.~~~~~",socket);
-				return -1;
-		}
-	}
-	return 0;	
-}
 
 
 void* game_logic_service_loop(void* arg)
@@ -949,5 +927,28 @@ void socket_test(game_logic* gl)
 		printf("gameid = %d,ret = %d\n",gl->game_service_id,ret);
 	}		
 }
+
+//发送通知唤醒其他服务的函数
+static int test_send_msg2_service(int socket)
+{
+	char* buf = "DATA"; 	//无任何意义的数据，为了唤醒其他服务
+	int n = write(socket,buf,strlen(buf));
+	if(n == -1)
+	{
+		switch(errno)
+		{
+			case EINTR:
+				//continue;
+			case EAGAIN:
+				return -1; //wait next time
+			default:
+				close(socket);
+				fprintf(stderr, "~~~~~send_msg2_service: write socket = %d error.~~~~~",socket);
+				return -1;
+		}
+	}
+	return 0;	
+}
+
 */
 
