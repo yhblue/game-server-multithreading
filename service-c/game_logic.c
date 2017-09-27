@@ -31,7 +31,7 @@
 
 #define START_POSITION_X				 0
 #define START_POSITION_Y				 0
-#define START_STEP						 2
+#define START_STEP						 4
 #define MAX_USER_NAME_LEN				15
 
 #define MOVE_STOP		0
@@ -643,7 +643,7 @@ static int leave_rsp_send(game_logic* gl,player* user,bool success)
 	broadcast_msg->list.broadcast_player_num = 1; 			//只有一个玩家
 	broadcast_msg->list.uid_list[0] = leave_uid;		  	//玩家的uid.
 
-	broadcast_msg->data.proto_type = MOVE_RSP;
+	broadcast_msg->data.proto_type = LEAVE_RSP;
 	broadcast_msg->data.buffer = rsp;
 
 	q_node* qnode = qnode_create(&broadcast_msg->list,&broadcast_msg->data,NULL);
@@ -664,18 +664,13 @@ static int leave_rsp_send(game_logic* gl,player* user,bool success)
 //退出请求->广播列表重建->player相关参数成员置空->回应给这个申请的玩家->广播通知同一场景内的所有玩家
 static int dispose_leave_request(game_logic* gl,player_id* user_id,void* data)
 {
-	leave_req* rsp = (leave_req*)data;
-	// int uid = rsp->uid;
-	
-	// map_uid_list_rebuild(gl,uid);		//广播列表重建 
-	// game_route_del(gl,uid); 			//在路由表中删除该成员 	
-
     player* user = &(gl->map_player[user_id->mapid][user_id->map_playerid]);
 	leave_rsp_send(gl,user,true); 		
-	// broadcast_player_msg(gl,user_id,ENEMY_LEAVE);
 
 	if(data != NULL)
 		free(data);
+
+	return 0;
 }
 
 
@@ -796,6 +791,7 @@ static int dispose_game_logic(game_logic* gl,q_node* qnode)
 
 			case LEAVE_REQ://退出请求
 				//退出请求->广播列表重建->player相关参数成员置空->回应给这个申请的玩家->广播通知同一场景内的所有玩家
+				printf("#######game:recieve hero leave request#######\n");
 				dispose_leave_request(gl,user_id,data);
 				break;
 		}
@@ -804,14 +800,14 @@ static int dispose_game_logic(game_logic* gl,q_node* qnode)
 }
 
 
-static int dispose_user_close(game_logic* gl,int uid)
+static void dispose_user_close(game_logic* gl,int uid)
 {
 	player_id* user_id = game_route_get_playerid(gl,uid);
 	if(user_id != NULL)
 	{
 		map_uid_list_rebuild(gl,uid);					//广播列表重建
-		broadcast_player_msg(gl,user_id,ENEMY_LEAVE);
 		game_route_del(gl,uid); 						//在路由表中删除该成员
+		broadcast_player_msg(gl,user_id,ENEMY_LEAVE);
 	}
 }
 

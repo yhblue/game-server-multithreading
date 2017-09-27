@@ -537,6 +537,38 @@ uint8_t* move_rsp_data_pack(void* pack_data,int* len)
 	return out_buf;			
 }
 
+uint8_t* leave_rsp_data_pack(void* pack_data,int* len)
+{
+	int pack_size = leave_rsp_get_packed_size(pack_data);
+	uint8_t* out_buf = (uint8_t*)malloc(pack_size + PROTO_HEAD_SIZE);
+	if(out_buf == NULL)
+		return NULL;
+
+	leave_rsp_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
+	out_buf[HEAD_PROTO_SIZE_INDEX] = pack_size + 1;
+	out_buf[HEAD_PROTO_TYPE_INDEX] = LEAVE_RSP;
+
+	*len = pack_size + PROTO_HEAD_SIZE;
+
+	return out_buf;		
+}
+
+uint8_t* enemy_leave_data_pack(void* pack_data,int* len)
+{
+	int pack_size = enemy_leave_get_packed_size(pack_data);
+	uint8_t* out_buf = (uint8_t*)malloc(pack_size + PROTO_HEAD_SIZE);
+	if(out_buf == NULL)
+		return NULL;
+
+	enemy_leave_pack(pack_data,out_buf+PROTO_HEAD_SIZE);
+	out_buf[HEAD_PROTO_SIZE_INDEX] = pack_size + 1;
+	out_buf[HEAD_PROTO_TYPE_INDEX] = ENEMY_LEAVE;
+
+	*len = pack_size + PROTO_HEAD_SIZE;
+
+	return out_buf;	
+}
+
 //这个函数要修改 qnode 部分,已修改
 //这个处理函数功能就是:
 //对数据根据proto_type进行protobuf的序列化->打包成 proto_type + len + seria_data 数据 ->push到socket的发送服务
@@ -579,6 +611,16 @@ static int dispose_game_service_que(net_logic* nl,q_node* qnode)
 		case MOVE_RSP:
 			printf("\n\n\n\n^^^^^^net route:MOVE_RSP^^^^^^^^\n\n\n\n\n");
 			rsp = move_rsp_data_pack(buffer,&rsp_size);
+			break;
+
+		case LEAVE_RSP:
+			printf("\n\n\n\n^^^^^^net route:LEAVE_RSP^^^^^^^^\n\n\n\n\n");
+			rsp = leave_rsp_data_pack(buffer,&rsp_size);
+			break;
+
+		case ENEMY_LEAVE:
+			printf("\n\n\n\n^^^^^^net route:ENEMY_LEAVE^^^^^^^^\n\n\n\n\n");
+			rsp = enemy_leave_data_pack(buffer,&rsp_size);
 			break;
 	}
 

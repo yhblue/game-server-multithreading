@@ -213,7 +213,7 @@ void login_end_free_unpacked(void* message,ProtobufCAllocator* allocator)
 }
 
 static inline
-void leave_rsp_init(void* message)
+void leave_req_init(void* message)
 {
 	leave_req__init(message);
 }
@@ -236,13 +236,44 @@ void* leave_req_unpack(ProtobufCAllocator* allocator,size_t len,const uint8_t* d
 	return leave_req__unpack(allocator,len,data);
 }
 
-
 static inline
 void leave_req_free_unpacked(void* message,ProtobufCAllocator* allocator)
 {
 	leave_req__free_unpacked(message,allocator);
 }
 
+//leave_rsp
+static inline
+void leave_rsp_init(void* message)
+{
+	leave_rsp__init(message);
+}
+
+static inline
+size_t leave_rsp_get_packed_size(const void* message)
+{
+	return leave_rsp__get_packed_size(message);
+}
+
+static inline
+size_t leave_rsp_pack(const void* message,uint8_t* out)
+{
+	return leave_rsp__pack(message,out);
+}
+
+static inline
+void* leave_rsp_unpack(ProtobufCAllocator* allocator,size_t len,const uint8_t* data)
+{
+	return leave_rsp__unpack(allocator,len,data);
+}
+
+static inline
+void leave_rsp_free_unpacked(void* message,ProtobufCAllocator* allocator)
+{
+	leave_rsp__free_unpacked(message,allocator);
+}
+
+//move_rsp
 static inline
 void move_rsp_init(void* message)
 {
@@ -446,7 +477,7 @@ static enemy_leave* enemy_leave_create(int uid)
 		return NULL;
 	}	
 	enemy_leave_init(rsp);
-	rsp.uid = uid;
+	rsp->uid = uid;
 	return rsp;
 }
 
