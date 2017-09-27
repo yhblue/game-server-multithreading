@@ -665,14 +665,14 @@ static int leave_rsp_send(game_logic* gl,player* user,bool success)
 static int dispose_leave_request(game_logic* gl,player_id* user_id,void* data)
 {
 	leave_req* rsp = (leave_req*)data;
-	int uid = rsp->uid;
+	// int uid = rsp->uid;
 	
-	map_uid_list_rebuild(gl,uid);		//广播列表重建 
-	game_route_del(gl,uid); 			//在路由表中删除该成员 	
+	// map_uid_list_rebuild(gl,uid);		//广播列表重建 
+	// game_route_del(gl,uid); 			//在路由表中删除该成员 	
 
-	player* user = &(gl->map_player[user_id->mapid][user_id->map_playerid]);
+    player* user = &(gl->map_player[user_id->mapid][user_id->map_playerid]);
 	leave_rsp_send(gl,user,true); 		
-	broadcast_player_msg(gl,user_id,ENEMY_LEAVE);
+	// broadcast_player_msg(gl,user_id,ENEMY_LEAVE);
 
 	if(data != NULL)
 		free(data);
@@ -803,6 +803,18 @@ static int dispose_game_logic(game_logic* gl,q_node* qnode)
 	return -1;
 }
 
+
+static int dispose_user_close(game_logic* gl,int uid)
+{
+	player_id* user_id = game_route_get_playerid(gl,uid);
+	if(user_id != NULL)
+	{
+		map_uid_list_rebuild(gl,uid);					//广播列表重建
+		broadcast_player_msg(gl,user_id,ENEMY_LEAVE);
+		game_route_del(gl,uid); 						//在路由表中删除该成员
+	}
+}
+
 //SUCCESS命令	-创建路由表中玩家成员
 //CLOSE         -删除成员
 //DATA		    -找到该玩家信息，对信息进行更新
@@ -828,8 +840,7 @@ static int dispose_queue_event(game_logic* gl)
 
 			case TYPE_CLOSE:    //玩家关闭
 				printf("\n\n<<<<<<<game service: client close uid = %d>>>>>>>\n",head->uid);
-				map_uid_list_rebuild(gl,head->uid);		//广播列表重建 
-				game_route_del(gl,head->uid); 			//在路由表中删除该成员 
+				dispose_user_close(gl,head->uid);
 				break;
 
 			case TYPE_SUCCESS:  //新玩家登陆
