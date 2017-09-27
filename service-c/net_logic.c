@@ -220,8 +220,8 @@ int route_get_msg_socket(net_logic* nl,int socket_id)
 //这个函数看看能不能改一下，这个函数必须依赖网络IO线程按照指定格式读，这样效率低
 static deserialize* unpack_user_data(unsigned char * data_pack,int len)
 {
-	unsigned char proto_type = data_pack[CONTENT_MSG_TYPE_INDEX]; 	 //记录用的.proto文件中哪个message来序列化  
-	unsigned char* seria_data = data_pack + PROTO_TYPE_SIZE;      //data_pack 是网络IO线程中分配的内存，反序列化完之后free掉
+	unsigned char proto_type = data_pack[CONTENT_MSG_TYPE_INDEX]; //记录用的.proto文件中哪个message来序列化  
+	unsigned char* seria_data = data_pack + PROTO_TYPE_SIZE;      //data_pack 是网络IO线程中分配的内存,反序列化完之后free掉
 	deserialize* data = (deserialize*)malloc(sizeof(deserialize));
 	int data_len = len - PROTO_TYPE_SIZE; //减去第一个字节包头
 	void * msg = NULL;
@@ -246,6 +246,7 @@ static deserialize* unpack_user_data(unsigned char * data_pack,int len)
 			break;
 
 		case LEAVE_REQ:
+			msg = move_req_unpack(NULL,data_len,seria_data);
 			break;			
 	}	
 	data->proto_type = proto_type;
@@ -536,7 +537,7 @@ uint8_t* move_rsp_data_pack(void* pack_data,int* len)
 	return out_buf;			
 }
 
-//这个函数要修改 qnode 部分
+//这个函数要修改 qnode 部分,已修改
 //这个处理函数功能就是:
 //对数据根据proto_type进行protobuf的序列化->打包成 proto_type + len + seria_data 数据 ->push到socket的发送服务
 static int dispose_game_service_que(net_logic* nl,q_node* qnode)
@@ -655,7 +656,7 @@ static int dispose_service_read_msg(service* sv)
 	}
 	if(n == 0) //client close,important
 	{
-		printf("/////////////////clse game socket/////////////////\n");
+		printf("------------clse game socket------------\n");
 		close(sv->sock_fd);
 		return EVENT_THREAD_DISCONNECT;
 	}

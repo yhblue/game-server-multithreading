@@ -15,7 +15,7 @@
 #define HEART_REQ     		'R'
 #define HEART_RSP     		'r'
 
-#define ENEMY_MSG     		'e'  //ENEMY_MSG这个信息存储的应该是登陆时候发送的,广播时候应该用另一个才对
+#define ENEMY_MSG     		'e'  
 
 #define NEW_ENEMY     		'n'  
 
@@ -45,8 +45,8 @@ typedef struct _LoginEnd 	 login_end;
 typedef struct _LeaveReq     leave_req;
 typedef struct _LeaveRsp 	 leave_rsp;
 typedef struct _MoveReq  	 move_req;
-typedef struct _MoveRsp  	 move_rsp;
-
+typedef struct _MoveRsp  	 move_rsp; 
+typedef struct _EnemyLeave 	 enemy_leave;
 
 //***********************************************************************************************************//
 //login_rsp:
@@ -304,9 +304,39 @@ void move_req_free_unpacked(void* message,ProtobufCAllocator* allocator)
 	move_req__free_unpacked(message,allocator);
 }
 
+//enemy_leave
+static inline
+void enemy_leave_init(void* message)
+{
+	enemy_leave__init(message);
+}
+
+static inline
+size_t enemy_leave_get_packed_size(const void* message)
+{
+	return enemy_leave__get_packed_size(message);
+}
+
+static inline
+size_t enemy_leave_pack(const void* message,uint8_t* out)
+{
+	return enemy_leave__pack(message,out);
+}
+
+static inline
+void* enemy_leave_unpack(ProtobufCAllocator* allocator,size_t len,const uint8_t* data)
+{
+	return enemy_leave_unpack(allocator,len,data);
+}
+
+static inline
+void enemy_leave_free_unpacked(void* message,ProtobufCAllocator *allocator)
+{
+	enemy_leave__free_unpacked(message,allocator);
+}
 
 /****************************************************************************************/
-static login_rsp* login_rsp_creat(bool success,int x,int y,int enemy_num,int uid)
+static login_rsp* login_rsp_create(bool success,int x,int y,int enemy_num,int uid)
 {
 	login_rsp* rsp = (login_rsp*)malloc(sizeof(login_rsp));
 	if(rsp == NULL)
@@ -323,7 +353,7 @@ static login_rsp* login_rsp_creat(bool success,int x,int y,int enemy_num,int uid
 	return rsp;
 }
 
-static start_rsp* start_rsp_creat(bool start)
+static start_rsp* start_rsp_create(bool start)
 {
 	start_rsp* rsp = (start_rsp*)malloc(sizeof(start_rsp));
 	if(rsp == NULL)
@@ -336,7 +366,7 @@ static start_rsp* start_rsp_creat(bool start)
 	return rsp;
 }
 
-static enemy_msg* enemy_msg_creat(int uid,int x,int y)
+static enemy_msg* enemy_msg_create(int uid,int x,int y)
 {
 	enemy_msg* rsp = (enemy_msg*)malloc(sizeof(enemy_msg));
 	if(rsp == NULL)
@@ -351,7 +381,7 @@ static enemy_msg* enemy_msg_creat(int uid,int x,int y)
 	return rsp;	
 }
 
-static new_enemy* new_enemy_creat(int uid,int x,int y)
+static new_enemy* new_enemy_create(int uid,int x,int y)
 {
 	new_enemy* rsp = (new_enemy*)malloc(sizeof(new_enemy));
 	if(rsp == NULL)
@@ -366,7 +396,7 @@ static new_enemy* new_enemy_creat(int uid,int x,int y)
 	return rsp;
 }
 
-static login_end* login_end_creat(bool end)
+static login_end* login_end_create(bool end)
 {
 	login_end* rsp = (login_end*)malloc(sizeof(login_end));
 	if(rsp == NULL)
@@ -379,7 +409,7 @@ static login_end* login_end_creat(bool end)
 	return rsp;
 }
 
-static leave_rsp* leave_rsp_creat(bool leave)
+static leave_rsp* leave_rsp_create(bool leave)
 {
 	leave_rsp* rsp = (leave_rsp*)malloc(sizeof(leave_rsp));
 	if(rsp == NULL)
@@ -407,5 +437,19 @@ static move_rsp* move_rsp_creat(bool success,int uid,int pos_x,int pos_y)
 
 	return rsp;
 }
+
+static enemy_leave* enemy_leave_create(int uid)
+{
+	enemy_leave* rsp = (enemy_leave*)malloc(sizeof(enemy_leave));
+	if(rsp == NULL)
+	{
+		return NULL;
+	}	
+	enemy_leave_init(rsp);
+	rsp.uid = uid;
+	return rsp;
+}
+
+
 
 #endif

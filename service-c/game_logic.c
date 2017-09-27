@@ -298,6 +298,8 @@ static int game_route_get_playerid_in_map(game_logic* gl,int mapid)
 	return -1;	//错误
 }
 
+//如果是正在使用的成员，返回该成员
+//否则就是出错或者已经通过发送请求关闭的成员
 static inline 
 player_id* game_route_get_playerid(game_logic* gl,int uid)
 {
@@ -375,6 +377,13 @@ static int game_route_del(game_logic* gl,int uid)
 
 		return 0;
 	}
+	else
+	{
+		if(gl->route->uid_2_playid[uid].state == STATE_TYPE_INVALID)  	  //如果已经是通过发送离开请求的成员
+		{
+			return 0;
+		}
+	}
 	return -1;
 }
 
@@ -437,23 +446,28 @@ static int login_msg_send(game_logic* gl,int hero_uid,int enemy_uid,char msg_typ
 	switch(msg_type)
 	{
 		case LOG_RSP:
-			rsp = login_rsp_creat(true,user->pos.point_x,user->pos.point_y,player_num,hero_uid);
+			rsp = login_rsp_create(true,user->pos.point_x,user->pos.point_y,player_num,hero_uid);
 			break;			
 
-		case ENEMY_MSG:									
-			rsp = enemy_msg_creat(enemy_uid,user->pos.point_x,user->pos.point_y);
-			break;				
+		case ENEMY_MSG:		
+		{
+			player_id* enemy_id = game_route_get_playerid(gl,enemy_uid);
+			player* enemy = &(gl->map_player[enemy_id->mapid][enemy_id->map_playerid]);
+			rsp = enemy_msg_create(enemy_uid,enemy->pos.point_x,enemy->pos.point_y);
+			printf("enemy msg:uid =%d,x=%d,y=%d\n",enemy_uid,user->pos.point_x,user->pos.point_y);
+			break;
+		}
 
 		case NEW_ENEMY:
-			rsp = new_enemy_creat(enemy_uid,user->pos.point_x,user->pos.point_y);
+			rsp = new_enemy_create(enemy_uid,user->pos.point_x,user->pos.point_y);
 			break;
 
 		case LOGIN_END:
-			rsp = login_end_creat(true); 
+			rsp = login_end_create(true); 
 			break;
 
 		case GAME_START_RSP:
-			rsp = start_rsp_creat(true);
+			rsp = start_rsp_create(true);
 			break;
 	}
 	if(rsp == NULL)
@@ -462,7 +476,7 @@ static int login_msg_send(game_logic* gl,int hero_uid,int enemy_uid,char msg_typ
 		return -1;		
 	}
 	broadcast_msg->data.proto_type = msg_type;
-	printf("\n\n&&&&&&& game: send type = %c to netlogic \n\n",msg_type);
+	printf("\n\n-------- game: send type = %c to netlogic -----\n\n",msg_type);
 	broadcast_msg->data.buffer = rsp;
 
 	q_node* qnode = qnode_create(&broadcast_msg->list,&broadcast_msg->data,NULL);
@@ -481,7 +495,7 @@ static int login_msg_send(game_logic* gl,int hero_uid,int enemy_uid,char msg_typ
 void map_uid_list_rebuild(game_logic* gl,int uid)
 {
 	player_id* user_id = game_route_get_playerid(gl,uid);
-	if(user_id == NULL)
+	if(user_id == NULL)  //socket already close
 	{
 		return;
 	}
@@ -492,10 +506,10 @@ void map_uid_list_rebuild(game_logic* gl,int uid)
 	for(int i=0; i<MAX_PLAYER_EACH_MAP; i++)  //10
 	{
 		int user_id = gl->route->map_player_socket_uid[mapid][i]; 
-		printf("+++++++++game rebuild:user_id = %d ++++++\n",user_id);
+		printf("+++++++++game rebuild:user_id = %d ++++++++\n",user_id);
 		if((user_id != PLAYER_UID_NULL) && (user_id != uid))    //那么不为空的放在 map_uid_list[] 最前面
 		{
-			printf("*******game rebuild:user_id = %d ********\n",user_id);
+			printf("*******game rebuild:user_id = %d **********\n",user_id);
 			gl->route->map_uid_list[mapid][index++] = user_id; //把有效的uid都放在最前面
 		}
 	}
@@ -530,12 +544,17 @@ static int broadcast_player_msg(game_logic* gl,player_id* user_id,char broadcast
 	switch(broadcast_msg_type) //广播的数据的 pack 类型
 	{
 		case NEW_ENEMY:
-			rsp = new_enemy_creat(user->msg.uid,user->pos.point_x,user->pos.point_y);
+			rsp = new_enemy_create(user->msg.uid,user->pos.point_x,user->pos.point_y);
 			break;
 
 		case ENEMY_MSG:
 			printf("**********game:broadcast enemy_msg******************\n");
-			rsp = enemy_msg_creat(user->msg.uid,user->pos.point_x,user->pos.point_y);
+			rsp = enemy_msg_create(user->msg.uid,user->pos.point_x,user->pos.point_y);
+			break;
+
+		case ENEMY_LEAVE:
+			printf("**********game:broadcast enemy leave******************\n");
+			rsp = enemy_leave_create(user->msg.uid);  //写到这里,继续写下去
 			break;
 	}
 	if(rsp == NULL)
@@ -559,6 +578,7 @@ static int broadcast_player_msg(game_logic* gl,player_id* user_id,char broadcast
 }
 
 
+
 //需要把这个地图中的玩家信息发送回请求的玩家
 //信息加载->发送登陆确认回复->得到此时的地图内信息->发送给这个玩家->广播给其他玩家有新玩家登陆->发送开始游戏信息
 static void dispose_login_request(game_logic* gl,player_id* user_id,void* data,int uid)
@@ -580,6 +600,9 @@ static void dispose_login_request(game_logic* gl,player_id* user_id,void* data,i
 	login_msg_send(gl,uid,0,LOGIN_END);								//登陆流程结束
 }
 
+
+
+//这里改一下，改成data里面包含uid
 static int dispose_start_request(game_logic* gl,player_id* user_id,void* data,int uid)
 {							
 	start_req* req = (start_req*)data;
@@ -598,6 +621,63 @@ static int dispose_start_request(game_logic* gl,player_id* user_id,void* data,in
 	free(data);
 	return 0;
 }
+
+static int leave_rsp_send(game_logic* gl,player* user,bool success)
+{
+	int leave_uid = user->msg.uid;
+	leave_rsp* rsp = leave_rsp_create(success);
+	if(rsp == NULL)
+	{
+		fprintf(ERR_FILE,"leave_rsp_send: rsp malloc error\n");
+		return -1;			
+	}
+	rsp->leave = success;
+
+	broadcast* broadcast_msg = (broadcast*)malloc(sizeof(broadcast));
+	if(broadcast_msg == NULL)
+	{
+		fprintf(ERR_FILE,"leave_rsp_send: broadcast_msg malloc error\n");
+		return -1;
+	}
+
+	broadcast_msg->list.broadcast_player_num = 1; 			//只有一个玩家
+	broadcast_msg->list.uid_list[0] = leave_uid;		  	//玩家的uid.
+
+	broadcast_msg->data.proto_type = MOVE_RSP;
+	broadcast_msg->data.buffer = rsp;
+
+	q_node* qnode = qnode_create(&broadcast_msg->list,&broadcast_msg->data,NULL);
+	if(qnode == NULL)
+	{
+		fprintf(ERR_FILE,"leave_rsp_send: qnode malloc error\n");
+		return -1;			
+	}
+
+	queue_push(gl->que_2_net_logic,qnode);    
+	if(send_msg2_service(gl->sock_2_net_logic) == -1)
+	{
+		fprintf(ERR_FILE,"\n\nleave_rsp_send:wake up netlogic error\n\n");
+	}	
+	return 0;	
+}
+
+//退出请求->广播列表重建->player相关参数成员置空->回应给这个申请的玩家->广播通知同一场景内的所有玩家
+static int dispose_leave_request(game_logic* gl,player_id* user_id,void* data)
+{
+	leave_req* rsp = (leave_req*)data;
+	int uid = rsp->uid;
+	
+	map_uid_list_rebuild(gl,uid);		//广播列表重建 
+	game_route_del(gl,uid); 			//在路由表中删除该成员 	
+
+	player* user = &(gl->map_player[user_id->mapid][user_id->map_playerid]);
+	leave_rsp_send(gl,user,true); 		
+	broadcast_player_msg(gl,user_id,ENEMY_LEAVE);
+
+	if(data != NULL)
+		free(data);
+}
+
 
 static int move_rsp_send(game_logic* gl,player* user,bool success)
 {
@@ -679,10 +759,10 @@ static int dispose_move_request(game_logic* gl,player_id* user_id,void* data)
 			}
 			break;
 	}
-	int hero_uid = user->msg.uid;
-	//login_msg_send(gl,hero_uid,0,LOGIN_END);        //test python speed.python low speed
 	broadcast_player_msg(gl,user_id,ENEMY_MSG);	
 	//move_rsp_send(gl,user,success);				//给请求方回应
+	if(data != NULL)
+		free(data);
 
 	return 0;
 }
@@ -712,6 +792,11 @@ static int dispose_game_logic(game_logic* gl,q_node* qnode)
 				//根据移动请求计算出下一刻应到达的位置->回应给请求的玩家->广播出去
 				//printf("#######game:recieve que game move request#######\n");
 				dispose_move_request(gl,user_id,data);
+				break;
+
+			case LEAVE_REQ://退出请求
+				//退出请求->广播列表重建->player相关参数成员置空->回应给这个申请的玩家->广播通知同一场景内的所有玩家
+				dispose_leave_request(gl,user_id,data);
 				break;
 		}
 	}
