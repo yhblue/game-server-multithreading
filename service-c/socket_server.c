@@ -276,7 +276,6 @@ static void close_fd(struct socket_server *ss,struct socket *s,struct socket_mes
 		result->data = "close\n";		
 	}
 
-	
 	struct append_buffer* tmp = s->head;
 	while( tmp ) //free
 	{
@@ -309,7 +308,7 @@ static void send_client_msg2net_logic(struct socket_server* ss,q_node* qnode)
 static void report_socket_error(struct socket_server* ss,int uid)
 {
 	msg_head* head = msg_head_create(TYPE_CLOSE,INVALID,uid,INVALID);
-	q_node* qnode = qnode_create(head,NULL,NULL);			//
+	q_node* qnode = qnode_create(NULL_PARAMETER,head,NULL_PARAMETER,NULL);			//
 	send_client_msg2net_logic(ss,qnode);         	//通知 netlogic service
 }
 
@@ -367,79 +366,7 @@ _err:
 	close_fd(ss,s,result);
 	return SOCKET_CLOSE;
 }
-/*
-//处理epoll的可读事件
-//这个函数还需要改，如果第二次读len长度数据时候被信号中断了改怎么办
-//s中再增加一个成员记录？如果是0则不处理，如果不为0则按这个长度读？
-static int dispose_readmessage(struct socket_server *ss,struct socket *s, struct socket_message * result)
-{
-	unsigned char len = 0;
-	char* buffer  = NULL;
-	sleep(1);
-	int n = (int)read(s->fd,&len,DATA_LEN_SIZE);
-	if(n <= 0)
-		goto _err;
-	assert(n == DATA_LEN_SIZE);
 
-	buffer = (char*)malloc(len);  
-	if(buffer == NULL) 
-	{
-		fprintf(ERR_FILE,"dispose_readmessage: result->buffer is NULL\n");
-		return -1;
-	}
-	memset(buffer,0,len);
-
-	n = (int)read(s->fd,buffer,len);
-
-	if(n <= 0)
-		goto _err;
-	printf("need len = %d, read is len = %d\n",len,n);
-	assert(n == len);
-
-	result->id = s->id;
-	result->lid_size = n;
-	result->data = buffer;  
-	return SOCKET_DATA;	
-
-_err:	
-	if(n < 0)
-	{
-		if(buffer != NULL)
-		{
-			free(buffer);
-			buffer = NULL;
-		}
-		switch(errno)
-		{
-			case EINTR:
-				fprintf(ERR_FILE,"dispose_readmessage: socket read,EINTR\n");
-				break;    	// wait for next time
-			case EAGAIN:		
-				fprintf(ERR_FILE,"dispose_readmessage: socket read,EAGAIN\n");
-				break;
-			default:
-				printf("\n\n\n\n<<~~~~~~~SOCKET_ERROR~~~~~~~~~~>>\n\n\n\n\n");
-				perror("SOCKET_ERROR");
-				close_fd(ss,s,result);
-				report_socket_error(ss,s->id);
-
-				return SOCKET_ERROR;			
-		}
-	}
-	if(n == 0) //client close,important
-	{
-		 if(buffer != NULL)
-		 {
-		 	free(buffer);
-		 	buffer = NULL;
-		 }
-		 printf("\n\n\n\n<<~~~~~~~~~~n = 0 client close~~~~~~~~~>>\n\n\n\n\n");
-		 close_fd(ss,s,result);
-		 return SOCKET_CLOSE;
-	}
-	return -1;
-}
-*/
 
 static int dispose_service_read_msg(int sev_fd)
 {
@@ -683,20 +610,48 @@ static int socket_server_listen(struct socket_server *ss,const char* host,int po
 	return -1;
 }
 
+static void dispose_service_full(struct socket_server *ss,q_node* qnode)
+{
+	int id = *((int*)qnode->buffer);
+	struct socket *s = &ss->socket_pool[id % MAX_SOCKET];
+	close_fd(ss,s,NULL);
+}
+
+static void dispose_player_error(struct socket_server *ss,q_node* qnode)
+{
+	int id = *((int*)qnode->buffer);
+	struct socket *s = &ss->socket_pool[id % MAX_SOCKET];
+	close_fd(ss,s,NULL);
+}
+
 static int dispose_queue_event(struct socket_server *ss)
 {
 	static int times = 0;
 	queue* que = ss->netlogic2io_que;
 	q_node* qnode = queue_pop(que);
+	char type = qnode->type;
 	if(qnode == NULL) //队列无数据
 	{
 		return -1; 
 	}
 	else
 	{
-		//把消息队列的数据的内容部分广播给指定玩家
-		printf("\n**********netio:broadcast data times=%d************\n",times++);
-		broadcast_user_msg(ss,qnode);
+		switch(type)
+		{
+			case TYPE_EVENT_SERVICE_FULL:
+				dispose_service_full(ss,qnode);
+				break;
+
+			case TYPE_EVENT_PLAYER_ERROR:
+				dispose_player_error(ss,qnode);
+				break;
+
+			default:
+				printf("~~~~~~~~~~~~~broadcast to client~~~~~~~~~~~~~\n");
+				broadcast_user_msg(ss,qnode);
+				break;
+		}
+
 		if(qnode != NULL)
 		{
 			free(qnode);
@@ -851,20 +806,20 @@ static q_node* dispose_event_result(struct socket_server* ss,struct socket_messa
 		case SOCKET_DATA:
 			printf("*********SOCKET_DATA***********\n");
 			head = msg_head_create(TYPE_DATA,INVALID,uid,len);
-			qnode = qnode_create(head,buf,NULL);
+			qnode = qnode_create(NULL_PARAMETER,head,buf,NULL);
 			printf("netio push data to queue\n");
 			break;
 
 		case SOCKET_CLOSE: 
 			printf("*********SOCKET_CLOSE***********\n");	
 			head = msg_head_create(TYPE_CLOSE,INVALID,uid,INVALID);
-			qnode = qnode_create(head,NULL,NULL);
+			qnode = qnode_create(NULL_PARAMETER,head,NULL_PARAMETER,NULL);
 			break;
 
 		case SOCKET_SUCCESS:
 			printf("*********SOCKET_SUCCESS***********\n");
 			head = msg_head_create(TYPE_SUCCESS,INVALID,uid,INVALID);
-			qnode = qnode_create(head,NULL,NULL);
+			qnode = qnode_create(NULL_PARAMETER,head,NULL_PARAMETER,NULL);
 			break;
 	}
 	if(head == NULL || qnode == NULL)
@@ -1256,5 +1211,79 @@ static int socket_server_send(struct socket_server* ss,struct send_data_req * re
 	}
 	return 0;
 }
+
+/*
+//处理epoll的可读事件
+//这个函数还需要改，如果第二次读len长度数据时候被信号中断了改怎么办
+//s中再增加一个成员记录？如果是0则不处理，如果不为0则按这个长度读？
+static int dispose_readmessage(struct socket_server *ss,struct socket *s, struct socket_message * result)
+{
+	unsigned char len = 0;
+	char* buffer  = NULL;
+	sleep(1);
+	int n = (int)read(s->fd,&len,DATA_LEN_SIZE);
+	if(n <= 0)
+		goto _err;
+	assert(n == DATA_LEN_SIZE);
+
+	buffer = (char*)malloc(len);  
+	if(buffer == NULL) 
+	{
+		fprintf(ERR_FILE,"dispose_readmessage: result->buffer is NULL\n");
+		return -1;
+	}
+	memset(buffer,0,len);
+
+	n = (int)read(s->fd,buffer,len);
+
+	if(n <= 0)
+		goto _err;
+	printf("need len = %d, read is len = %d\n",len,n);
+	assert(n == len);
+
+	result->id = s->id;
+	result->lid_size = n;
+	result->data = buffer;  
+	return SOCKET_DATA;	
+
+_err:	
+	if(n < 0)
+	{
+		if(buffer != NULL)
+		{
+			free(buffer);
+			buffer = NULL;
+		}
+		switch(errno)
+		{
+			case EINTR:
+				fprintf(ERR_FILE,"dispose_readmessage: socket read,EINTR\n");
+				break;    	// wait for next time
+			case EAGAIN:		
+				fprintf(ERR_FILE,"dispose_readmessage: socket read,EAGAIN\n");
+				break;
+			default:
+				printf("\n\n\n\n<<~~~~~~~SOCKET_ERROR~~~~~~~~~~>>\n\n\n\n\n");
+				perror("SOCKET_ERROR");
+				close_fd(ss,s,result);
+				report_socket_error(ss,s->id);
+
+				return SOCKET_ERROR;			
+		}
+	}
+	if(n == 0) //client close,important
+	{
+		 if(buffer != NULL)
+		 {
+		 	free(buffer);
+		 	buffer = NULL;
+		 }
+		 printf("\n\n\n\n<<~~~~~~~~~~n = 0 client close~~~~~~~~~>>\n\n\n\n\n");
+		 close_fd(ss,s,result);
+		 return SOCKET_CLOSE;
+	}
+	return -1;
+}
+*/
 
 */

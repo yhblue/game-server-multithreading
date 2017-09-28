@@ -33,6 +33,17 @@
 
 #define INVALID 				   -1
 
+
+//一个游戏逻辑线程最大支持20*10个玩家在线
+#define MAX_MAP    						    20
+#define MAX_PLAYER_EACH_MAP  			    10
+#define MAX_GAME_SERVICE_PLAYER_NUM	   20 * 10
+
+
+//
+#define TYPE_EVENT_SERVICE_FULL		'F'
+#define TYPE_EVENT_PLAYER_ERROR		'E'
+
 typedef struct _net_logic_start
 {
 	queue* que_pool;

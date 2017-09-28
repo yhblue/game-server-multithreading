@@ -39,7 +39,7 @@ queue* queue_creat()
 
 
 
-q_node* qnode_create(void* msg_head,void* buffer,q_node* next)
+q_node* qnode_create(char type,void* msg_head,void* buffer,q_node* next)
 {
     q_node* qnode = (q_node*)malloc(sizeof(q_node));
     if(qnode == NULL)
@@ -47,6 +47,7 @@ q_node* qnode_create(void* msg_head,void* buffer,q_node* next)
         fprintf(ERR_FILE,"set_qnode:qnode malloc failed\n"); 
         return NULL;
     }
+    qnode->type = type;
     qnode->msg_head = msg_head;
     qnode->buffer = buffer;
     qnode->next = next;

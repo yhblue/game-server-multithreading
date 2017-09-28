@@ -135,20 +135,19 @@ queue* message_que_creat()
 }
 
 //为一个新的 socket 分配到一个游戏逻辑服务的 id
+//这个负载均衡的算法应该要怎样设计比较合理呢？0-3号游戏逻辑线程,如果少于每个线程最大维护的玩家数，
+//则分配给这个线程,直到这个线程满了.
 uint8_t route_distribute_gamelogic(net_logic* nl)
 {
-	// int gamelogic01_player = nl->route.online_player[GAME_LOGIC_SERVER_FIRST];
-	// int gamelogic02_player = nl->route.online_player[GAME_LOGIC_SERVER_SECOND];
-	// int gamelogic03_player = nl->route.online_player[GAME_LOGIC_SERVER_THIRD];
-	// int gamelogic04_player = nl->route.online_player[GAME_LOGIC_SERVER_FOURTH];
-
-	// uint8_t id1 = (gamelogic01_player < gamelogic02_player)? GAME_LOGIC_SERVER_FIRST:GAME_LOGIC_SERVER_SECOND;
-	// uint8_t id2 = (gamelogic03_player < gamelogic04_player)? GAME_LOGIC_SERVER_THIRD:GAME_LOGIC_SERVER_FOURTH;
-
-	// uint8_t ret = (nl->route.online_player[id1] < nl->route.online_player[id2])? id1 : id2;
-
-	// return ret;
-	return 0;
+	int game_index = 0;
+	for(game_index=0; game_index<GAME_LOGIC_SERVICE_NUM; game_index++)
+	{
+		int player_num = nl->route.online_player[game_index];
+		printf("\ngame[%d] player_num = %d\n",game_index,player_num);
+		if(player_num < MAX_GAME_SERVICE_PLAYER_NUM)
+			return game_index;	
+	}
+	return -1;
 }
 
 //SOCKET_SUCCESS
@@ -156,11 +155,19 @@ static int route_set_gamelogic_id(net_logic* nl,int socket_id)
 {
 	if(nl->route.sock_id2game_logic[socket_id] == PLAYER_TYPE_INVALID) //新的客户端
 	{
-		nl->route.game_service_id = route_distribute_gamelogic(nl);    //分配游戏服务来处理
-		nl->route.sock_id2game_logic[socket_id] = nl->route.game_service_id; 
-		nl->route.online_player[nl->route.game_service_id] ++;
-		printf("~~~~ socket is invalid,nl->route.game_service_id = %d ~~~~~\n",nl->route.game_service_id);
-		return 0;
+		int id = route_distribute_gamelogic(nl);
+		if(id != -1)   //service full
+		{
+			nl->route.game_service_id = id;    //分配游戏服务来处理
+			nl->route.sock_id2game_logic[socket_id] = nl->route.game_service_id; 
+			nl->route.online_player[nl->route.game_service_id] ++;
+			return 0;
+		}
+		else  		  //not full
+		{
+			fprintf(ERR_FILE,"route_set_gamelogic_id: service is full\n");
+			return -1;
+		}
 	}
 	else
 	{
@@ -371,7 +378,7 @@ static q_node* pack_user_data(deserialize* desseria_data,int uid_pack,char type_
 		fprintf(ERR_FILE,"pack_user_data:head malloc failed\n");
 		return NULL;
 	}
-	q_node* qnode = qnode_create(head,desseria_data->buffer,NULL);
+	q_node* qnode = qnode_create(NULL_PARAMETER,head,desseria_data->buffer,NULL);
 	if(qnode == NULL)
 	{
 		fprintf(ERR_FILE,"pack_user_data:qnode malloc failed\n");
@@ -390,13 +397,31 @@ static q_node* pack_inform_data(int uid_pack,char type_pack)
 		return NULL;
 	}
 
-	q_node* qnode = qnode_create(head,NULL,NULL);
+	q_node* qnode = qnode_create(NULL_PARAMETER,head,NULL_PARAMETER,NULL);
 	if(qnode == NULL)
 	{
 		fprintf(ERR_FILE,"pack_user_data:qnode malloc failed\n");
 		return NULL;
 	}		
 	return qnode;
+}
+
+int report_service_full(net_logic* nl,int uid)
+{
+	int *data = (char*)malloc(sizeof(data));
+	*data = uid;
+
+	q_node* node = qnode_create(TYPE_EVENT_SERVICE_FULL,NULL_PARAMETER,data,NULL);
+	if(node == NULL)
+	{
+		fprintf(ERR_FILE,"report_service_full:qnode malloc failed\n");
+		return -1;
+	}	
+
+	queue_push(nl->network_que,node);
+	send_msg2_service(nl->netio_netroute_socket);	//通知netio服务处理
+
+	
 }
 
 static int dispose_netio_service_que(net_logic* nl,q_node* qnode)
@@ -431,7 +456,11 @@ static int dispose_netio_service_que(net_logic* nl,q_node* qnode)
 		case TYPE_SUCCESS:  			// 'S' 
 		{
 			printf("^^^^^^ netlogic type = TYPE_SUCCESS ^^^^^^^^^^^\n");
-			route_set_gamelogic_id(nl,uid);
+			if(route_set_gamelogic_id(nl,uid) == -1) 							//服务器达到处理人数上限->通知netio服务,关闭连接
+			{
+				report_service_full(nl,uid);
+				return 0;
+			}
 			q_node* send_qnode = pack_inform_data(uid,type); 
 			send_msg_2_game_logic(nl,send_qnode,uid);
 			break;				
@@ -626,7 +655,7 @@ static int dispose_game_service_que(net_logic* nl,q_node* qnode)
 
 	//pack to qnode -> send to write
 	msg_head->size = rsp_size;	//记录发送的数据的长度,用于发送
-	q_node* node = qnode_create(msg_head,rsp,NULL);
+	q_node* node = qnode_create(NULL_PARAMETER,msg_head,rsp,NULL);
 	if(node == NULL)
 	{
 		fprintf(ERR_FILE,"dispose_game_service_que:qnode malloc failed\n");

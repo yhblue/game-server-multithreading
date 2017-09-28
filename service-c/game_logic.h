@@ -5,10 +5,6 @@
 #include "net_logic.h"
 #include <stdint.h>
 
-//一个游戏逻辑线程最大支持20*10个玩家在线
-#define MAX_MAP    						    20
-#define MAX_PLAYER_EACH_MAP  			    10
-#define MAX_GAME_SERVICE_PLAYER_NUM	   20 * 10
 
 typedef struct _player_id
 {
