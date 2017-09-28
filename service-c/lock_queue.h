@@ -21,7 +21,7 @@ typedef struct node
   
 typedef struct _queue
 {  
-    q_node* head;   //指向对头节点  
+    q_node* head;   //指向队头节点  
     q_node* tail;   //指向队尾节点  
     spin_lock lock; //锁
 }queue;

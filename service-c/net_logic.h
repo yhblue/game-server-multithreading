@@ -4,7 +4,7 @@
 #include "lock_queue.h"
 #include "configure.h"
 
-#define MESSAGE_QUEUE_NUM    7
+#define MESSAGE_QUEUE_NUM    8
 
 #define QUE_ID_NETIO_2_NETLOGIC          0
 #define QUE_ID_NETLOGIC_2_NETIO          1
@@ -12,7 +12,8 @@
 #define QUE_ID_NETLOGIC_2_GAME_SECOND	 3
 #define QUE_ID_NETLOGIC_2_GAME_THIRD	 4
 #define QUE_ID_NETLOGIC_2_GAME_FOURTH	 5
-#define QUE_ID_GAMELOGIC_2_NETLOGIC	     6  
+#define QUE_ID_GAMELOGIC_2_NETLOGIC	     6 
+#define QUE_ID_LOG_SERVER				 7 
 
 #define SERVICE_ID_NETWORK_IO       	 0
 #define SERVICE_ID_NET_ROUTE        	 1
