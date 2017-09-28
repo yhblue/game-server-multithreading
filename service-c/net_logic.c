@@ -156,14 +156,14 @@ static int route_set_gamelogic_id(net_logic* nl,int socket_id)
 	if(nl->route.sock_id2game_logic[socket_id] == PLAYER_TYPE_INVALID) //新的客户端
 	{
 		int id = route_distribute_gamelogic(nl);
-		if(id != -1)   //service full
+		if(id != -1)   //service not full
 		{
 			nl->route.game_service_id = id;    //分配游戏服务来处理
 			nl->route.sock_id2game_logic[socket_id] = nl->route.game_service_id; 
 			nl->route.online_player[nl->route.game_service_id] ++;
 			return 0;
 		}
-		else  		  //not full
+		else  		  //service full
 		{
 			fprintf(ERR_FILE,"route_set_gamelogic_id: service is full\n");
 			return -1;
@@ -406,9 +406,9 @@ static q_node* pack_inform_data(int uid_pack,char type_pack)
 	return qnode;
 }
 
-int report_service_full(net_logic* nl,int uid)
+static int report_service_full(net_logic* nl,int uid)
 {
-	int *data = (char*)malloc(sizeof(data));
+	int *data = (int*)malloc(sizeof(int));
 	*data = uid;
 
 	q_node* node = qnode_create(TYPE_EVENT_SERVICE_FULL,NULL_HEAD,data,NULL);
@@ -421,7 +421,7 @@ int report_service_full(net_logic* nl,int uid)
 	queue_push(nl->network_que,node);
 	send_msg2_service(nl->netio_netroute_socket);	//通知netio服务处理
 
-	
+	return 0;
 }
 
 static int dispose_netio_service_que(net_logic* nl,q_node* qnode)
