@@ -625,16 +625,16 @@ static void dispose_player_error(struct socket_server *ss,q_node* qnode)
 
 static int dispose_queue_event(struct socket_server *ss)
 {
-	static int times = 0;
+//	static int times = 0;
 	queue* que = ss->netlogic2io_que;
 	q_node* qnode = queue_pop(que);
-	char type = qnode->type;
 	if(qnode == NULL) //队列无数据
 	{
 		return -1; 
 	}
 	else
 	{
+		char type = qnode->type;
 		switch(type)
 		{
 			case TYPE_EVENT_SERVICE_FULL:
@@ -726,7 +726,7 @@ static int socket_server_event(struct socket_server *ss, struct socket_message *
 		switch(s->type) 
 		{
 			case SOCKET_TYPE_NETLOGIC:
-				printf("~~~~~~netio:netlogic socket have event~~~~~~~~~");
+				printf("~~~~~~netio:netlogic socket have event~~~~~~~~~\n");
 				dispose_service_read_msg(ss->socket_netlog);
 				ss->que_check = true;
 				break;					
