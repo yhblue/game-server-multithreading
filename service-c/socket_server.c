@@ -962,7 +962,7 @@ _EXIT:
 
 
 
-
+#if 0
 /*--------------------------------------------------------------------------------------------------------------
 void read_test(struct socket_server* ss,int id,const char* data,int size,struct socket_message *result)
 {
@@ -1124,7 +1124,7 @@ static int send_notice2_netlogic_service(struct socket_server* ss)
 }
 
 
-##########
+
 static int close_socket(struct socket_server *ss,struct close_req *close,struct socket_message * result)
 {
 	int close_id = close->id;
@@ -1212,7 +1212,7 @@ static int socket_server_send(struct socket_server* ss,struct send_data_req * re
 	return 0;
 }
 
-/*
+
 //处理epoll的可读事件
 //这个函数还需要改，如果第二次读len长度数据时候被信号中断了改怎么办
 //s中再增加一个成员记录？如果是0则不处理，如果不为0则按这个长度读？
@@ -1285,5 +1285,4 @@ _err:
 	return -1;
 }
 */
-
-*/
+#endif
