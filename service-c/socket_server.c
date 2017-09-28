@@ -308,7 +308,7 @@ static void send_client_msg2net_logic(struct socket_server* ss,q_node* qnode)
 static void report_socket_error(struct socket_server* ss,int uid)
 {
 	msg_head* head = msg_head_create(TYPE_CLOSE,INVALID,uid,INVALID);
-	q_node* qnode = qnode_create(NULL_PARAMETER,head,NULL_PARAMETER,NULL);			//
+	q_node* qnode = qnode_create(NULL_TYPE,head,NULL_BUFFER,NULL);			//
 	send_client_msg2net_logic(ss,qnode);         	//通知 netlogic service
 }
 
@@ -806,20 +806,20 @@ static q_node* dispose_event_result(struct socket_server* ss,struct socket_messa
 		case SOCKET_DATA:
 			printf("*********SOCKET_DATA***********\n");
 			head = msg_head_create(TYPE_DATA,INVALID,uid,len);
-			qnode = qnode_create(NULL_PARAMETER,head,buf,NULL);
+			qnode = qnode_create(NULL_TYPE,head,buf,NULL);
 			printf("netio push data to queue\n");
 			break;
 
 		case SOCKET_CLOSE: 
 			printf("*********SOCKET_CLOSE***********\n");	
 			head = msg_head_create(TYPE_CLOSE,INVALID,uid,INVALID);
-			qnode = qnode_create(NULL_PARAMETER,head,NULL_PARAMETER,NULL);
+			qnode = qnode_create(NULL_TYPE,head,NULL_BUFFER,NULL);
 			break;
 
 		case SOCKET_SUCCESS:
 			printf("*********SOCKET_SUCCESS***********\n");
 			head = msg_head_create(TYPE_SUCCESS,INVALID,uid,INVALID);
-			qnode = qnode_create(NULL_PARAMETER,head,NULL_PARAMETER,NULL);
+			qnode = qnode_create(NULL_TYPE,head,NULL_BUFFER,NULL);
 			break;
 	}
 	if(head == NULL || qnode == NULL)

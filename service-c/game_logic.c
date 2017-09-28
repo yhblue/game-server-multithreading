@@ -479,7 +479,7 @@ static int login_msg_send(game_logic* gl,int hero_uid,int enemy_uid,char msg_typ
 	printf("\n\n-------- game: send type = %c to netlogic -----\n\n",msg_type);
 	broadcast_msg->data.buffer = rsp;
 
-	q_node* qnode = qnode_create(NULL_PARAMETER,&broadcast_msg->list,&broadcast_msg->data,NULL);
+	q_node* qnode = qnode_create(NULL_TYPE,&broadcast_msg->list,&broadcast_msg->data,NULL);
 	if(qnode == NULL)
 	{
 		fprintf(ERR_FILE,"send_login_rsp: qnode malloc error\n");
@@ -565,7 +565,7 @@ static int broadcast_player_msg(game_logic* gl,player_id* user_id,char broadcast
 	broadcast_msg->data.proto_type = broadcast_msg_type;
 	broadcast_msg->data.buffer = rsp;
 
-	q_node* qnode = qnode_create(NULL_PARAMETER,&broadcast_msg->list,&broadcast_msg->data,NULL);
+	q_node* qnode = qnode_create(NULL_TYPE,&broadcast_msg->list,&broadcast_msg->data,NULL);
 	if(qnode == NULL)
 	{
 		fprintf(ERR_FILE,"send_login_rsp: qnode malloc error\n");
@@ -646,7 +646,7 @@ static int leave_rsp_send(game_logic* gl,player* user,bool success)
 	broadcast_msg->data.proto_type = LEAVE_RSP;
 	broadcast_msg->data.buffer = rsp;
 
-	q_node* qnode = qnode_create(NULL_PARAMETER,&broadcast_msg->list,&broadcast_msg->data,NULL);
+	q_node* qnode = qnode_create(NULL_TYPE,&broadcast_msg->list,&broadcast_msg->data,NULL);
 	if(qnode == NULL)
 	{
 		fprintf(ERR_FILE,"leave_rsp_send: qnode malloc error\n");
@@ -699,7 +699,7 @@ static int move_rsp_send(game_logic* gl,player* user,bool success)
 	broadcast_msg->data.proto_type = MOVE_RSP;
 	broadcast_msg->data.buffer = rsp;
 
-	q_node* qnode = qnode_create(NULL_PARAMETER,&broadcast_msg->list,&broadcast_msg->data,NULL);
+	q_node* qnode = qnode_create(NULL_TYPE,&broadcast_msg->list,&broadcast_msg->data,NULL);
 	if(qnode == NULL)
 	{
 		fprintf(ERR_FILE,"move_rsp_send: qnode malloc error\n");

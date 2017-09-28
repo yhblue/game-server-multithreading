@@ -5,7 +5,10 @@
 
 #include <pthread.h>
 
-#define NULL_PARAMETER   NULL
+//#define NULL_PARAMETER   NULL
+#define NULL_TYPE		 0
+#define NULL_HEAD		 NULL
+#define NULL_BUFFER		 NULL
 
 typedef struct node 
 {  

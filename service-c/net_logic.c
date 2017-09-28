@@ -378,7 +378,7 @@ static q_node* pack_user_data(deserialize* desseria_data,int uid_pack,char type_
 		fprintf(ERR_FILE,"pack_user_data:head malloc failed\n");
 		return NULL;
 	}
-	q_node* qnode = qnode_create(NULL_PARAMETER,head,desseria_data->buffer,NULL);
+	q_node* qnode = qnode_create(NULL_TYPE,head,desseria_data->buffer,NULL);
 	if(qnode == NULL)
 	{
 		fprintf(ERR_FILE,"pack_user_data:qnode malloc failed\n");
@@ -397,7 +397,7 @@ static q_node* pack_inform_data(int uid_pack,char type_pack)
 		return NULL;
 	}
 
-	q_node* qnode = qnode_create(NULL_PARAMETER,head,NULL_PARAMETER,NULL);
+	q_node* qnode = qnode_create(NULL_TYPE,head,NULL_BUFFER,NULL);
 	if(qnode == NULL)
 	{
 		fprintf(ERR_FILE,"pack_user_data:qnode malloc failed\n");
@@ -411,7 +411,7 @@ int report_service_full(net_logic* nl,int uid)
 	int *data = (char*)malloc(sizeof(data));
 	*data = uid;
 
-	q_node* node = qnode_create(TYPE_EVENT_SERVICE_FULL,NULL_PARAMETER,data,NULL);
+	q_node* node = qnode_create(TYPE_EVENT_SERVICE_FULL,NULL_HEAD,data,NULL);
 	if(node == NULL)
 	{
 		fprintf(ERR_FILE,"report_service_full:qnode malloc failed\n");
@@ -655,7 +655,7 @@ static int dispose_game_service_que(net_logic* nl,q_node* qnode)
 
 	//pack to qnode -> send to write
 	msg_head->size = rsp_size;	//记录发送的数据的长度,用于发送
-	q_node* node = qnode_create(NULL_PARAMETER,msg_head,rsp,NULL);
+	q_node* node = qnode_create(NULL_TYPE,msg_head,rsp,NULL);
 	if(node == NULL)
 	{
 		fprintf(ERR_FILE,"dispose_game_service_que:qnode malloc failed\n");
