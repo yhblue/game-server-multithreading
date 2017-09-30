@@ -9,6 +9,10 @@
 #define  LEVEL_WARN	     2
 #define  LEVEL_ERROR     3
 
+#define LOG_TYPE_NWTWORK	0
+#define lOG_TYPE_ROUTE		1
+#define LOG_TYPE_GAME		2
+
 typedef struct _log_server_start
 {
 	queue* que_pool;

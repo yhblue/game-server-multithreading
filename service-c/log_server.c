@@ -9,6 +9,8 @@
 #include <stdint.h>
 #include <assert.h>
 #include <string.h>
+#include <malloc.h>
+#define MAX_LOG_CONTENT_SIZE	256    //log一次最多256个字节，避免一次log内容需要多行显示
 
 typedef struct _log_server
 {
@@ -18,14 +20,16 @@ typedef struct _log_server
 	queue* server_queue;
 	int server_id;
 	bool que_check;
+	char* log_content;//256字节
 }log_server;
 
 
 //log服务应该要有那几个字段
 //1.level级别
-//2.服务标识
+//2.类型标识
 //3.日期-时间
-//4.内容:key:val形式
+//4.内容:
+
 
 static log_server* log_server_create(net_logic_start* start)
 {
@@ -34,11 +38,19 @@ static log_server* log_server_create(net_logic_start* start)
 	{
 		return NULL;
 	}
+	ls->log_content = (char*)malloc(MAX_LOG_CONTENT_SIZE);
+	if(ls->log_content == NULL)
+	{
+		return NULL;
+	}
+	memset(ls->log_content,0,MAX_LOG_CONTENT_SIZE);
+
 	ls->network_log_path = start->network_log_path;
 	ls->route_log_path = start->route_log_path;
 	ls->game_log_path = start->game_log_path;
 	ls->server_queue =  start->que_pool[QUE_ID_LOG_SERVER];
 	ls->que_check = true;
+
 	return ls;
 }
 
@@ -108,6 +120,26 @@ static int log_server_event(log_server* ls)
 } 
 
 
+void get_current_time()
+{
+	time_t time_seconds = time(0);  
+    struct tm now_time;  
+    localtime_r(&time_seconds, &now_time);  
+  	sprintf(ls->log_content,"%d-%d-%d %d:%d:%d", now_time.tm_year + 1900, now_time.tm_mon + 1,  
+          now_time.tm_mday, now_time.tm_hour, now_time.tm_min, now_time.tm_sec);  
+//  	printf("%s\n",ls->log_content);
+}
+
+void log(int level,int type,char* format,...)
+{
+
+}
+
+void log(char* format,...)
+{
+	printf(format,...);
+}
+
 void* log_server_loop(void* arg)
 {
 	log_server_start* start = (log_server_start*)arg;
@@ -123,7 +155,6 @@ void* log_server_loop(void* arg)
 
 	}
 }
-
 
 
 
